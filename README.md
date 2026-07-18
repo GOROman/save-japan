@@ -14,7 +14,7 @@
 
 Japan once astonished the world with its energy, imagination, and shared belief in a brighter future. Today, many people feel that confidence and connection fading. **Save Japan!** asks a hopeful question: what if we could awaken that spirit again—not by returning to the past, but by bringing its courage, creativity, and solidarity into the future?
 
-Save Japan! turns a room full of strangers into one nationwide defense team for an intense 60-second mission. Players scan a QR code, choose a nickname and their home prefecture, receive a unique interceptor, and complete four live cooperative missions to defend Japan from a UFO invasion. A shared command screen visualizes the participating regions and the country's combined progress.
+Save Japan! turns a room full of strangers into one nationwide defense team for an intense two-minute live experience. Players scan a QR code, choose a nickname and their home prefecture, receive a unique interceptor, and complete three regional missions plus a synchronized final boss battle. A shared command screen visualizes every participating region and the country's combined progress in real time.
 
 ## Inspiration
 
@@ -37,6 +37,14 @@ Players scan a QR code, enter a nickname, and select their hometown prefecture. 
 Players complete a four-stage mission sequence created with GPT-5.6. The sequence moves from regional pride to cross-region support, a coordinated attack, and a nationwide final defense. Every action from every phone contributes to the same shared objective.
 
 During the climax, all players receive the same final command and press **DEFEND!** together. Energy from the participating prefectures combines to save Japan. The goal is not for one prefecture to defeat the others: the final outcome depends on nationwide cooperation.
+
+## Why it matters
+
+Most multiplayer games turn geography into rivalry. Save Japan! uses hometown identity to create the opposite behavior: individual participation becomes visible, regional activity strengthens the whole map, and success requires cooperation across prefectural boundaries.
+
+The format is designed for festivals, schools, conferences, community events, and public installations. It requires no app installation, account, GPS permission, or exact location. A nickname and player-selected prefecture are enough to create personal presence while minimizing collected data.
+
+The UFO battle is intentionally playful, but the interaction model has a broader purpose: make collective action feel immediate, legible, and emotionally rewarding. The same platform could support disaster-preparedness drills, volunteering campaigns, local initiatives, and civic participation.
 
 ## How we built it
 
@@ -78,13 +86,13 @@ We also want to connect the energy created inside the game to real-world action.
 
 The UFO invasion is the beginning. The long-term goal is to turn shared excitement into lasting motivation to support local communities and build a stronger Japan together.
 
-## 60-second live demo flow
+## Two-minute live experience
 
 1. Open `/display` on the projector.
-2. Players scan the QR code and join from any mobile browser.
-3. The host starts the defense. GPT-5.6 creates four missions based on the prefectures present.
-4. Every tap contributes live across four timed stages.
-5. In the final ten seconds, all regions unite to save Japan.
+2. Players scan the QR code and join from any mobile browser—no installation or account.
+3. The host starts a 30-second mobilization countdown while GPT-5.6 prepares the mission copy.
+4. Players complete three 20-second cooperative missions as attacks and regional energy appear on the shared map.
+5. A 30-second boss phase combines nationwide GENKI energy and synchronized launch votes into the final attack.
 
 ## Run locally
 
@@ -104,14 +112,60 @@ The app remains fully playable with a safe set of fallback missions if the API i
 - **Codex:** We used one primary Codex thread to turn the concept into the complete realtime product: product scoping, architecture, mobile UI, command-screen design, Socket.IO game state, safety fallback, testing, and documentation. Codex helped us reach an end-to-end multiplayer prototype within the first implementation sprint while we retained the core product and design decisions.
 - **GPT-5.6:** GPT-5.6 is part of the live product, not just the development process. At the start of each game it receives the actual set of participating prefectures and creates a structured four-stage cooperative mission sequence: regional pride, cross-region support, coordinated attack, and final synchronized defense. Strict JSON schema output keeps generation reliable for a live audience.
 
-## Architecture
+## Technical architecture
 
-- Mobile-first browser client (HTML/CSS/JavaScript)
-- Projector command screen at `/display`
-- Node.js + Express
-- Socket.IO realtime multiplayer state
-- OpenAI Responses API with GPT-5.6 structured output
-- No accounts, database, or personal data retention
+```text
+Player phones ── Socket.IO actions ──▶ Authoritative Node.js game server
+      ▲                                      │
+      │                                      ├── phase timing and scoring
+      │ realtime state                       ├── action throttling
+      │                                      ├── GPT-5.6 mission generation
+      │                                      └── deterministic fallback missions
+      │
+Projector command screen ◀──────── synchronized public game state
+```
+
+- **Player client:** mobile-first HTML, CSS, and JavaScript for registration, missions, attacks, haptics, and local sound effects.
+- **Command screen:** a dedicated `/display` route for QR onboarding, the live Japan map, player arrivals, enemy attacks, mission state, and results.
+- **Authoritative server:** Node.js, Express, and Socket.IO own the phase clock, player registry, scores, enemies, boss energy, and launch-vote threshold.
+- **AI boundary:** the OpenAI Responses API produces exactly four mission objects through a strict JSON schema. Generated durations are replaced with server-controlled values before use.
+- **Graceful fallback:** missing credentials, API errors, or invalid generation never block play; the server uses a tested fixed mission sequence.
+- **Deployment:** `render.yaml` defines a Node 22 web service, deterministic `npm ci` build, WebSocket-capable runtime, and `/health` check.
+- **Data model:** live state is intentionally ephemeral. The prototype stores no accounts, passwords, GPS coordinates, or database records.
+
+## Reliability and safety
+
+- The server—not the browser—decides whether an action is valid for the current phase.
+- Player actions are throttled per socket to limit accidental double taps and basic action spam.
+- Nicknames and prefecture values are normalized and length-bounded before entering shared state.
+- Game timing is based on server timestamps and broadcast to every connected screen.
+- AI generation occurs once before play; it is not placed in the latency-sensitive action loop.
+- Strict structured output and deterministic fallback content keep the live event playable when AI is unavailable.
+- The deployment exposes a health endpoint and uses lockfile-based dependency installation.
+
+## Prototype trust boundary and known limitations
+
+This hackathon build is designed for a **hosted, supervised venue session**. Host and debug Socket.IO events currently assume that the projector operator and venue network are trusted; they are not yet protected by host authentication. Realtime state is held in one Node.js process and resets when that process restarts.
+
+Before operating the platform as an unsupervised public service, we would add:
+
+- a host token and role checks for start, reset, boss, fire, and debug events;
+- production removal or compile-time disabling of the 60-player debug simulator;
+- shared persistent state for multi-instance deployment and restart recovery;
+- session isolation, reconnect recovery, abuse monitoring, and stricter rate limits;
+- automated integration and load tests for venue-scale concurrency.
+
+Keeping these limitations explicit separates the working event MVP from its production-hardening roadmap.
+
+## Repository evidence
+
+- `server.js` — authoritative state machine, validation, throttling, AI boundary, fallback behavior, and health route.
+- `public/app.js` — player registration and realtime mobile controls.
+- `public/display.js` — synchronized projector visualization and event rendering.
+- `public/audio.js` and `assets/audio/` — lightweight synthesized/MIDI and sampled battle audio.
+- `assets/sprites/` — transparent interceptor, missile, UFO, and explosion assets.
+- `render.yaml` — reproducible hosted deployment configuration.
+- `assets/save-japan-demo.gif` — recorded end-to-end multiplayer demonstration.
 
 ## Team
 
