@@ -3,6 +3,11 @@ let state = null,
   audioReady = false,
   clockOffset = 0;
 const $ = (id) => document.getElementById(id);
+const gameQrOverlay = document.createElement("div");
+gameQrOverlay.className = "game-qr-overlay hidden";
+gameQrOverlay.innerHTML =
+  '<img src="/api/qr" alt="Join QR code"><strong>SCAN TO JOIN</strong>';
+document.body.append(gameQrOverlay);
 const commentLayer = document.createElement("div");
 commentLayer.className = "live-comments";
 document.body.append(commentLayer);
@@ -10,8 +15,8 @@ let commentSequence = 0;
 let lastCommentAt = 0;
 function liveComment(message, tone = "normal") {
   const now = Date.now();
-  if (tone === "normal" && now - lastCommentAt < 1600) return;
-  if (tone === "normal" && Math.random() > 0.12) return;
+  if (tone === "normal" && now - lastCommentAt < 2400) return;
+  if (tone === "normal" && Math.random() > 0.06) return;
   lastCommentAt = now;
   const item = document.createElement("span");
   item.className = `live-comment ${tone}`;
@@ -106,6 +111,7 @@ window.addEventListener("keydown", (event) => {
   if (event.key.toLowerCase() === "b") $("boss").click();
   if (event.key.toLowerCase() === "x") $("finalFire").click();
   if (event.key.toLowerCase() === "f") toggleFullscreen();
+  if (event.key.toLowerCase() === "q") gameQrOverlay.classList.toggle("hidden");
   if (event.key.toLowerCase() === "r") $("reset").click();
 });
 async function toggleFullscreen() {
@@ -173,6 +179,7 @@ $("reset").onclick = () => {
 };
 $("debug60").onclick = () => socket.emit("host:debug60");
 $("boss").onclick = () => socket.emit("host:boss");
+$("qrToggle").onclick = () => gameQrOverlay.classList.toggle("hidden");
 $("finalFire").onclick = () => {
   if (audioReady) SaveJapanAudio.hissatsu();
   socket.emit("host:fire");
@@ -303,7 +310,7 @@ function showApproachWarning() {
   cutin.classList.add("approach-cutin");
   cutin.querySelector("small").textContent = "⚠ EMERGENCY TRANSMISSION";
   cutin.querySelector("strong").innerHTML =
-    '<span class="approach-message">A HUGE BATTLESHIP FATTY GLUTTON-G IS APPROACHING FAST.</span><b>ボス襲撃！</b>';
+    '<span class="approach-message warning-only">WARNING</span><b>ボス襲撃！</b>';
   let ticker = cutin.querySelector("em");
   if (ticker)
     ticker.textContent =
@@ -461,20 +468,31 @@ function updateEnemyVisuals() {
     void hud.getBoundingClientRect();
     hud.classList.add("boss-hud-arrival");
   }
-  $("enemyFleet").innerHTML =
-    state.phase === "playing"
-      ? state.enemies
-          .map((enemy, index) => {
-            const x = 5 + enemy.lane * 86;
-            const y = 2 + (index % 3) * 24;
-            const hp = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
-            const sprite = ["ufo-scout", "ufo-scanner", "ufo-heavy"][
-              enemy.id % 3
-            ];
-            return `<span class="enemy-unit" data-enemy-id="${enemy.id}" style="left:${x}%;top:${y}%;--i:${index}"><img src="/assets/sprites/${sprite}.png" alt="Enemy UFO"><i><b style="width:${hp}%"></b></i></span>`;
-          })
-          .join("")
-      : "";
+  const fleet = $("enemyFleet");
+  if (state.phase !== "playing") {
+    fleet.replaceChildren();
+    return;
+  }
+  const activeIds = new Set(state.enemies.map((enemy) => String(enemy.id)));
+  fleet.querySelectorAll(".enemy-unit").forEach((unit) => {
+    if (!activeIds.has(unit.dataset.enemyId)) unit.remove();
+  });
+  state.enemies.forEach((enemy, index) => {
+    let unit = fleet.querySelector(`[data-enemy-id="${enemy.id}"]`);
+    if (!unit) {
+      unit = document.createElement("span");
+      unit.className = "enemy-unit";
+      unit.dataset.enemyId = enemy.id;
+      const sprite = ["ufo-scout", "ufo-scanner", "ufo-heavy"][enemy.id % 3];
+      unit.innerHTML = `<img src="/assets/sprites/${sprite}.png" alt="Enemy UFO"><i><b></b></i>`;
+      fleet.append(unit);
+    }
+    unit.style.left = `${5 + enemy.lane * 86}%`;
+    unit.style.top = `${2 + (index % 3) * 24}%`;
+    unit.style.setProperty("--i", index);
+    unit.querySelector("i b").style.width =
+      `${Math.max(0, (enemy.hp / enemy.maxHp) * 100)}%`;
+  });
 }
 function updateActiveRegions() {
   document
@@ -525,10 +543,6 @@ function firePrefectureBeam(prefecture, enemyId = null) {
   pulse.innerHTML = `<b>${prefectureJapanese(prefecture)}</b>`;
   const missile = document.createElement("i");
   missile.className = "homing-missile";
-  missile.style.setProperty(
-    "--missile-sprite",
-    `url("/assets/sprites/missile-${["blue", "purple", "red"][Math.floor(Math.random() * 3)]}.png")`,
-  );
   const direction = startX < targetX ? 1 : -1;
   const jitter = () => (Math.random() - 0.5) * 190;
   const lift = Math.min(startY, targetY);

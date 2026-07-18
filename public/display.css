@@ -1,6 +1,44 @@
 body {
   overflow: hidden;
 }
+.game-qr-overlay {
+  position: fixed;
+  z-index: 720;
+  top: 92px;
+  right: 28px;
+  width: min(32vw, 430px);
+  padding: 18px;
+  border: 6px solid white;
+  border-radius: 26px;
+  background: white;
+  color: #07111e;
+  text-align: center;
+  box-shadow:
+    0 0 35px #37b3ff,
+    0 0 85px #001b35;
+  animation: gameQrReveal 0.35s ease-out both;
+}
+.game-qr-overlay img {
+  display: block;
+  width: 100%;
+  border-radius: 8px;
+}
+.game-qr-overlay strong {
+  display: block;
+  margin-top: 6px;
+  font-size: clamp(18px, 1.6vw, 28px);
+  letter-spacing: 0.12em;
+}
+@keyframes gameQrReveal {
+  from {
+    opacity: 0;
+    transform: translateY(-18px) scale(0.88);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
 body.final-ten:after {
   content: "";
   position: fixed;
@@ -649,6 +687,19 @@ body.result-reveal .victory-screen:not(.hidden) {
   white-space: nowrap;
   animation: approachMessage 3.35s linear both;
 }
+.approach-message.warning-only {
+  width: 100%;
+  text-align: center;
+  letter-spacing: 0.28em;
+  animation: warningPulse 0.55s steps(1, end) infinite;
+}
+@keyframes warningPulse {
+  50% {
+    color: #ff173f;
+    opacity: 0.55;
+    transform: scale(1.06);
+  }
+}
 .join-cutin.approach-cutin strong > b {
   display: block;
   margin-top: 18px;
@@ -913,7 +964,7 @@ body.boss-warning {
 @keyframes enemyArrival {
   from {
     opacity: 0;
-    transform: translate(-50%, -260%) scale(0.18);
+    transform: translate(-50%, -50%) scale(0.18);
   }
   to {
     opacity: 1;
@@ -1340,16 +1391,27 @@ body.boss-warning {
   left: 0;
   top: 0;
   z-index: 5;
-  width: 30px;
-  height: 62px;
-  offset-rotate: auto 90deg;
-  background: var(--missile-sprite) center / contain no-repeat;
-  filter: drop-shadow(0 0 7px #fff) drop-shadow(0 0 16px #38a8ff);
+  width: 18px;
+  height: 6px;
+  border-radius: 100% 15% 15% 100%;
+  offset-rotate: auto;
+  background: #fff;
+  box-shadow:
+    -12px 0 5px #54ff93,
+    -28px 0 12px #16d963,
+    0 0 14px white;
   animation: homingMissile var(--flight-time, 0.92s)
     cubic-bezier(0.18, 0.68, 0.2, 1) both;
 }
 .homing-missile:after {
-  content: none;
+  content: "";
+  position: absolute;
+  right: -5px;
+  top: -4px;
+  border-left: 8px solid #eaffef;
+  border-top: 7px solid transparent;
+  border-bottom: 7px solid transparent;
+  filter: drop-shadow(0 0 5px white);
 }
 @keyframes prefectureBlast {
   0% {
