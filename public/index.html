@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
   <head>
     <meta charset="UTF-8" />
     <meta
@@ -13,7 +13,8 @@
   <body>
     <main class="shell">
       <div class="brand">
-        <span class="brand-mark">日</span> National Defense Network
+        <span class="brand-mark">日</span>
+        <span id="networkName">全国防衛ネットワーク</span>
       </div>
       <section id="join">
         <div class="hero">
@@ -22,43 +23,46 @@
             src="/assets/save-japan-key-art.png"
             alt="UFO invasion over Japan"
           />
-          <div class="eyebrow">UFO Alert · Level 5</div>
+          <div id="alertLabel" class="eyebrow">UFO警報 · レベル5</div>
           <h1>SAVE<br /><span>JAPAN!</span></h1>
-          <p>
-            Your hometown needs you. Join pilots from all 47 prefectures and
-            defend Japan—together.
+          <p id="heroCopy">
+            あなたの故郷が、あなたを待っている。47都道府県の仲間と力を合わせ、日本を守ろう。
           </p>
         </div>
         <form id="joinForm" class="card">
           <label class="field"
-            ><span>Call sign</span
+            ><span id="nameLabel">名前</span
             ><input
               id="nickname"
               maxlength="16"
               required
-              placeholder="Your nickname"
+              placeholder="ニックネーム"
               autocomplete="nickname" /></label
           ><label class="field"
-            ><span>Your hometown</span
+            ><span id="hometownLabel">あなたの故郷は？</span
             ><select id="prefecture" required></select></label
-          ><button class="primary">Launch interceptor →</button>
-          <div class="fine">No account. No download. Just teamwork.</div>
+          ><button id="joinButton" class="primary">迎撃機で参戦 →</button>
+          <div id="joinFine" class="fine">
+            登録不要。ダウンロード不要。必要なのはチームワークだけ。
+          </div>
         </form>
       </section>
       <section id="game" class="hidden pilot">
         <div class="interceptor" id="ship">
-          <img src="/assets/player-ship-blue.png" alt="Blue interceptor" />
+          <img src="/assets/sprites/interceptor-yellow.png" alt="Interceptor" />
         </div>
         <div class="pilot-name" id="pilotName"></div>
         <div class="pilot-region" id="pilotRegion"></div>
         <div class="card mission-card">
-          <div class="mission-number" id="missionNumber">STAND BY</div>
-          <h2 id="missionTitle">Waiting for launch</h2>
-          <p id="missionBrief">The defense commander will start soon.</p>
+          <div class="mission-number" id="missionNumber">待機中</div>
+          <h2 id="missionTitle">作戦開始を待っています</h2>
+          <p id="missionBrief">まもなく防衛司令部が作戦を開始します。</p>
           <div class="progress"><i id="progressBar"></i></div>
         </div>
         <button id="fire" class="fire hidden">DEFEND!</button>
-        <div class="score">Your contribution <b id="myScore">0</b></div>
+        <div class="score">
+          <span id="contributionLabel">あなたの貢献</span> <b id="myScore">0</b>
+        </div>
       </section>
       <section id="victory" class="hidden victory">
         <img
@@ -66,13 +70,16 @@
           src="/assets/save-japan-key-art.png"
           alt="Japan protected"
         />
-        <h2>JAPAN<br />IS SAFE.</h2>
-        <p>
-          47 prefectures. One team.<br />Take this energy into the real world.
-        </p>
+        <h2>日本は<br />救われた・・</h2>
+        <p>47都道府県、ひとつのチーム。<br />この元気を、現実の日本へ。</p>
+        <div class="mobile-ranking">
+          <h3 id="mobileRankingTitle">トップランキング</h3>
+          <ol id="mobileLeaderboard"></ol>
+        </div>
       </section>
     </main>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/audio.js"></script>
     <script src="/app.js"></script>
   </body>
 </html>

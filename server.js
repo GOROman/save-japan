@@ -15,6 +15,7 @@ app.use("/assets", express.static("assets"));
 app.get("/display", (_req, res) =>
   res.sendFile(new URL("./public/display.html", import.meta.url).pathname),
 );
+app.get("/health", (_req, res) => res.json({ ok: true }));
 
 const defaultMissions = [
   {
@@ -56,6 +57,9 @@ const state = {
   missionScore: 0,
   genki: 0,
   launchVotes: new Set(),
+  enemies: [],
+  nextEnemyId: 1,
+  bossVulnerableAnnounced: false,
   startedAt: null,
   endsAt: null,
   lastAction: new Map(),
@@ -110,6 +114,11 @@ const prefectureNames = [
   "Kagoshima",
   "Okinawa",
 ];
+const debugTimers = new Set();
+function clearDebugTimers() {
+  for (const timer of debugTimers) clearTimeout(timer);
+  debugTimers.clear();
+}
 
 function targetFor(index = state.missionIndex) {
   return Math.max(
@@ -120,6 +129,8 @@ function targetFor(index = state.missionIndex) {
 
 function publicState() {
   const players = [...state.players.values()];
+  const resultScore = (player) =>
+    (player.ufoKills || 0) * 100 + (player.bossDamage || 0) * 10;
   const prefectures = Object.entries(
     players.reduce((all, p) => {
       all[p.prefecture] = (all[p.prefecture] || 0) + 1;
@@ -136,10 +147,22 @@ function publicState() {
     genki: state.genki,
     genkiTarget: Math.max(8, state.players.size * 6),
     launchVotes: state.launchVotes.size,
+    enemies: state.enemies,
     players: players.length,
     prefectures,
     recentPlayers: players.slice(-60).reverse(),
     activePlayers: players.slice(-30),
+    leaderboard: players
+      .slice()
+      .sort((a, b) => resultScore(b) - resultScore(a))
+      .map(({ id, nickname, prefecture, ufoKills = 0, bossDamage = 0 }) => ({
+        id,
+        nickname,
+        prefecture,
+        ufoKills,
+        bossDamage,
+        score: ufoKills * 100 + bossDamage * 10,
+      })),
     startedAt: state.startedAt,
     endsAt: state.endsAt,
     serverNow: Date.now(),
@@ -148,6 +171,15 @@ function publicState() {
 
 function broadcast() {
   io.emit("state", publicState());
+}
+
+function beginBossDefeat() {
+  if (state.phase !== "boss") return;
+  state.phase = "bossDefeat";
+  state.startedAt = Date.now();
+  state.endsAt = state.startedAt + 5_000;
+  io.emit("bossDefeatSequence");
+  broadcast();
 }
 
 async function generateMissions() {
@@ -221,6 +253,9 @@ io.on("connection", (socket) => {
         .slice(0, 12),
       interceptor: Math.floor(Math.random() * 6),
       score: 0,
+      ufoKills: 0,
+      bossDamage: 0,
+      hp: 100,
     };
     state.players.set(socket.id, player);
     reply({ ok: true, player });
@@ -238,40 +273,176 @@ io.on("connection", (socket) => {
     state.score += 1;
     if (state.phase === "boss") {
       const target = Math.max(8, state.players.size * 6);
-      if (state.genki < target) state.genki += 1;
-      else state.launchVotes.add(socket.id);
+      if (state.genki < target) {
+        const vulnerable = Date.now() - state.startedAt >= 15_000;
+        const nextGenki = Math.min(
+          target,
+          state.genki + 1,
+          vulnerable ? target : target - 1,
+        );
+        player.bossDamage += nextGenki - state.genki;
+        state.genki = nextGenki;
+      } else state.launchVotes.add(socket.id);
       if (
         state.genki >= target &&
         state.launchVotes.size >=
           Math.max(1, Math.ceil(state.players.size * 0.5))
       ) {
-        state.phase = "victory";
-        io.emit("bossDefeated");
+        beginBossDefeat();
       }
-    } else state.missionScore += 1;
+    } else {
+      state.missionScore += 1;
+      const playerRegion = regionFor(player.prefecture);
+      const enemy =
+        state.enemies.find((item) => item.region === playerRegion) ||
+        state.enemies[0];
+      if (enemy) {
+        enemy.hp = Math.max(0, enemy.hp - 20);
+        io.emit("enemyHit", {
+          id: enemy.id,
+          prefecture: player.prefecture,
+          nickname: player.nickname,
+        });
+        if (enemy.hp === 0) {
+          player.ufoKills += 1;
+          state.enemies = state.enemies.filter((item) => item.id !== enemy.id);
+          io.emit("enemyDestroyed", {
+            id: enemy.id,
+            region: enemy.region,
+            nickname: player.nickname,
+            prefecture: player.prefecture,
+          });
+        }
+      }
+    }
     io.emit("pulse", {
       prefecture: player.prefecture,
       missionIndex: state.missionIndex,
     });
+    broadcast();
   });
 
   socket.on("host:start", async () => {
     if (state.phase !== "lobby") return;
-    state.phase = "login";
+    state.phase = "playing";
     state.startedAt = Date.now();
-    state.endsAt = state.startedAt + 30_000;
+    state.endsAt = state.startedAt + 60_000;
     state.score = 0;
     state.missionScore = 0;
     state.missionIndex = 0;
     state.genki = 0;
+    state.bossVulnerableAnnounced = false;
+    state.enemies = [];
     state.launchVotes.clear();
-    for (const p of state.players.values()) p.score = 0;
+    for (const p of state.players.values()) {
+      p.score = 0;
+      p.ufoKills = 0;
+      p.bossDamage = 0;
+    }
+    io.emit("phaseChange", { phase: "playing" });
     broadcast();
     state.missions = await generateMissions();
     broadcast();
   });
 
+  socket.on("host:boss", () => {
+    clearDebugTimers();
+    const now = Date.now();
+    state.phase = "bossWarning";
+    state.startedAt = now;
+    state.endsAt = now + 4_000;
+    state.missionIndex = 3;
+    state.genki = 0;
+    state.bossVulnerableAnnounced = false;
+    state.enemies = [];
+    state.launchVotes.clear();
+    io.emit("phaseChange", { phase: "bossWarning" });
+    broadcast();
+  });
+
+  socket.on("host:fire", () => {
+    if (state.phase !== "boss") return;
+    state.genki = Math.max(8, state.players.size * 6);
+    const prefectures = [...state.players.values()].map(
+      (player) => player.prefecture,
+    );
+    const salvo = prefectures.length
+      ? prefectures
+      : ["Tokyo", "Osaka", "Hokkaido", "Fukuoka"];
+    salvo.slice(0, 24).forEach((prefecture, index) => {
+      setTimeout(
+        () => io.emit("pulse", { prefecture, missionIndex: 3 }),
+        index * 45,
+      );
+    });
+    broadcast();
+    setTimeout(() => {
+      if (state.phase !== "boss") return;
+      beginBossDefeat();
+    }, 1800);
+  });
+
+  socket.on("host:debugAttack", ({ prefecture = "Tokyo" } = {}) => {
+    if (state.phase !== "playing" || state.enemies.length === 0) return;
+    const matchingPlayers = [...state.players.values()].filter(
+      (player) => player.prefecture === prefecture,
+    );
+    const allPlayers = [...state.players.values()];
+    const attacker = matchingPlayers[
+      Math.floor(Math.random() * matchingPlayers.length)
+    ] ||
+      allPlayers[Math.floor(Math.random() * allPlayers.length)] || {
+        nickname: "パイロット",
+        prefecture,
+        ufoKills: 0,
+      };
+    const playerRegion = regionFor(attacker.prefecture);
+    const regionalEnemies = state.enemies.filter(
+      (enemy) => enemy.region === playerRegion,
+    );
+    const candidates = regionalEnemies.length ? regionalEnemies : state.enemies;
+    const enemy = candidates[Math.floor(Math.random() * candidates.length)];
+    enemy.hp = Math.max(0, enemy.hp - 20);
+    io.emit("enemyHit", {
+      id: enemy.id,
+      prefecture: attacker.prefecture,
+      nickname: attacker.nickname,
+    });
+    if (enemy.hp === 0) {
+      attacker.ufoKills = (attacker.ufoKills || 0) + 1;
+      state.enemies = state.enemies.filter((item) => item.id !== enemy.id);
+      io.emit("enemyDestroyed", {
+        id: enemy.id,
+        region: enemy.region,
+        nickname: attacker.nickname,
+        prefecture: attacker.prefecture,
+      });
+    }
+    broadcast();
+  });
+
+  socket.on("host:bossAttack", ({ prefecture = "Tokyo" } = {}) => {
+    if (state.phase !== "boss") return;
+    const target = Math.max(8, state.players.size * 6);
+    const damage = Math.max(1, Math.ceil(target / 20));
+    const vulnerable = Date.now() - state.startedAt >= 15_000;
+    state.genki = Math.min(
+      target,
+      state.genki + damage,
+      vulnerable ? target : target - 1,
+    );
+    io.emit("pulse", { prefecture, missionIndex: 3 });
+    broadcast();
+    if (state.genki >= target) {
+      setTimeout(() => {
+        if (state.phase !== "boss") return;
+        beginBossDefeat();
+      }, 650);
+    }
+  });
+
   socket.on("host:reset", () => {
+    clearDebugTimers();
     for (const [key, player] of state.players) {
       if (player.debug) state.players.delete(key);
     }
@@ -281,33 +452,56 @@ io.on("connection", (socket) => {
       missionScore: 0,
       missionIndex: 0,
       genki: 0,
+      enemies: [],
       missions: defaultMissions,
       startedAt: null,
       endsAt: null,
     });
     state.launchVotes.clear();
-    for (const p of state.players.values()) p.score = 0;
+    for (const p of state.players.values()) {
+      p.score = 0;
+      p.ufoKills = 0;
+      p.bossDamage = 0;
+    }
     broadcast();
   });
   socket.on("host:debug60", () => {
+    clearDebugTimers();
     for (const [key, player] of state.players) {
       if (player.debug) state.players.delete(key);
     }
     const needed = Math.max(0, 60 - state.players.size);
-    for (let index = 0; index < needed; index++) {
-      const key = `debug-${index + 1}`;
-      state.players.set(key, {
-        id: randomUUID(),
-        socketId: key,
-        nickname: `PILOT-${String(index + 1).padStart(2, "0")}`,
-        prefecture: prefectureNames[index % prefectureNames.length],
-        interceptor: index % 6,
-        score: Math.floor(Math.random() * 12),
-        debug: true,
-      });
-    }
-    io.emit("debugLoaded", { players: state.players.size });
-    broadcast();
+    const shuffled = [...prefectureNames].sort(() => Math.random() - 0.5);
+    const arrivals = Array.from({ length: needed }, (_, index) => ({
+      index,
+      prefecture:
+        index < shuffled.length
+          ? shuffled[index]
+          : prefectureNames[Math.floor(Math.random() * prefectureNames.length)],
+      delay: Math.floor(250 + Math.random() * 27_500),
+    })).sort((a, b) => a.delay - b.delay);
+    io.emit("debugStarted", { total: needed, duration: 30 });
+    arrivals.forEach((arrival) => {
+      const timer = setTimeout(() => {
+        debugTimers.delete(timer);
+        const key = `debug-${arrival.index + 1}`;
+        state.players.set(key, {
+          id: randomUUID(),
+          socketId: key,
+          nickname: `PILOT-${String(arrival.index + 1).padStart(2, "0")}`,
+          prefecture: arrival.prefecture,
+          interceptor: arrival.index % 6,
+          score: Math.floor(Math.random() * 12),
+          ufoKills: Math.floor(Math.random() * 4),
+          bossDamage: Math.floor(Math.random() * 16),
+          hp: 100,
+          debug: true,
+        });
+        io.emit("debugLoaded", { players: state.players.size, total: 60 });
+        broadcast();
+      }, arrival.delay);
+      debugTimers.add(timer);
+    });
   });
   socket.on("disconnect", () => {
     state.players.delete(socket.id);
@@ -333,20 +527,127 @@ setInterval(() => {
       io.emit("missionComplete", { title: completed.title, victory: false });
     }
     if (now >= state.endsAt) {
-      state.phase = "boss";
+      state.phase = "bossWarning";
       state.startedAt = now;
-      state.endsAt = now + 30_000;
+      state.endsAt = now + 4_000;
       state.missionIndex = 3;
       state.genki = 0;
       state.launchVotes.clear();
-      io.emit("phaseChange", { phase: "boss" });
+      io.emit("phaseChange", { phase: "bossWarning" });
     }
+  } else if (state.phase === "bossWarning" && now >= state.endsAt) {
+    state.phase = "boss";
+    state.startedAt = now;
+    state.endsAt = now + 30_000;
+    state.bossVulnerableAnnounced = false;
+    io.emit("phaseChange", { phase: "boss" });
   } else if (state.phase === "boss" && now >= state.endsAt) {
+    beginBossDefeat();
+  } else if (state.phase === "bossDefeat" && now >= state.endsAt) {
     state.phase = "victory";
     io.emit("bossDefeated");
+    broadcast();
   }
-  if (["login", "playing", "boss"].includes(state.phase)) broadcast();
+  if (
+    state.phase === "boss" &&
+    !state.bossVulnerableAnnounced &&
+    now - state.startedAt >= 15_000
+  ) {
+    state.bossVulnerableAnnounced = true;
+    io.emit("bossCritical");
+  }
+  if (
+    ["login", "playing", "bossWarning", "boss", "bossDefeat"].includes(
+      state.phase,
+    )
+  )
+    broadcast();
 }, 250);
+
+setInterval(() => {
+  if (state.phase !== "playing" || state.enemies.length >= 10) return;
+  const regions = [
+    "hokkaido",
+    "tohoku",
+    "kanto",
+    "chubu",
+    "kinki",
+    "chugoku",
+    "shikoku",
+    "kyushu",
+  ];
+  const region = regions[Math.floor(Math.random() * regions.length)];
+  state.enemies.push({
+    id: state.nextEnemyId++,
+    region,
+    hp: 100,
+    maxHp: 100,
+    lane: Math.random(),
+  });
+  io.emit("enemySpawn", { region });
+  broadcast();
+}, 1700);
+
+setInterval(() => {
+  if (state.phase !== "playing" || state.enemies.length === 0) return;
+  const enemy = state.enemies[Math.floor(Math.random() * state.enemies.length)];
+  const targets = [...state.players.values()].filter(
+    (player) => regionFor(player.prefecture) === enemy.region,
+  );
+  const target = targets[Math.floor(Math.random() * targets.length)];
+  if (target) target.hp = Math.max(10, (target.hp ?? 100) - 10);
+  io.emit("enemyAttack", {
+    enemyId: enemy.id,
+    region: enemy.region,
+    playerId: target?.id,
+  });
+  broadcast();
+}, 1200);
+
+function regionFor(prefecture) {
+  const groups = {
+    hokkaido: ["Hokkaido"],
+    tohoku: ["Aomori", "Iwate", "Miyagi", "Akita", "Yamagata", "Fukushima"],
+    kanto: [
+      "Ibaraki",
+      "Tochigi",
+      "Gunma",
+      "Saitama",
+      "Chiba",
+      "Tokyo",
+      "Kanagawa",
+    ],
+    chubu: [
+      "Niigata",
+      "Toyama",
+      "Ishikawa",
+      "Fukui",
+      "Yamanashi",
+      "Nagano",
+      "Gifu",
+      "Shizuoka",
+      "Aichi",
+    ],
+    kinki: ["Mie", "Shiga", "Kyoto", "Osaka", "Hyogo", "Nara", "Wakayama"],
+    chugoku: ["Tottori", "Shimane", "Okayama", "Hiroshima", "Yamaguchi"],
+    shikoku: ["Tokushima", "Kagawa", "Ehime", "Kochi"],
+    kyushu: [
+      "Fukuoka",
+      "Saga",
+      "Nagasaki",
+      "Kumamoto",
+      "Oita",
+      "Miyazaki",
+      "Kagoshima",
+      "Okinawa",
+    ],
+  };
+  return (
+    Object.entries(groups).find(([, names]) =>
+      names.includes(prefecture),
+    )?.[0] || "kanto"
+  );
+}
 
 app.get("/api/qr", async (req, res) => {
   const url = `${req.protocol}://${req.get("host")}/`;
@@ -359,7 +660,7 @@ app.get("/api/qr", async (req, res) => {
   );
 });
 
-server.listen(port, () =>
+server.listen(port, "0.0.0.0", () =>
   console.log(
     `Save Japan ready at http://localhost:${port} — display: /display`,
   ),

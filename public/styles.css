@@ -319,3 +319,64 @@ select {
 .victory p {
   color: #afc0d2;
 }
+.mobile-ranking {
+  margin-top: 24px;
+  text-align: left;
+}
+.mobile-ranking h3 {
+  margin: 0 0 10px;
+  color: #69bfff;
+  font-size: 13px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.mobile-ranking ol {
+  max-height: 42vh;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+  border: 1px solid #27435e;
+  border-radius: 14px;
+  background: #050b15dd;
+}
+.mobile-ranking li {
+  display: grid;
+  grid-template-columns: 34px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 11px 12px;
+  border-bottom: 1px solid #1c3044;
+}
+.mobile-ranking li:last-child {
+  border-bottom: 0;
+}
+.mobile-ranking li > i {
+  color: #58baff;
+  font-style: normal;
+  font-weight: 900;
+}
+.mobile-ranking li b {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mobile-ranking li b small {
+  display: block;
+  color: #849bb0;
+  font-weight: 500;
+}
+.mobile-ranking li strong {
+  color: #fff;
+  font-size: 20px;
+}
+.mobile-ranking li.me {
+  border-color: #55ff8c;
+  background: linear-gradient(90deg, #0a4c2baa, #0b1b20);
+  box-shadow: inset 4px 0 #55ff8c;
+}
+.mobile-ranking li.me > i,
+.mobile-ranking li.me strong {
+  color: #55ff8c;
+}

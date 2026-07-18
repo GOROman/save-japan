@@ -1,5 +1,9 @@
 # Save Japan!
 
+<p align="center">
+  <img src="assets/save-japan-key-art.png" alt="Save Japan! — nationwide cooperative UFO defense game" width="760">
+</p>
+
 **Reignite Japan's spirit—one hometown at a time.**
 
 Japan once astonished the world with its energy, imagination, and shared belief in a brighter future. Today, many people feel that confidence and connection fading. **Save Japan!** asks a hopeful question: what if we could awaken that spirit again—not by returning to the past, but by bringing its courage, creativity, and solidarity into the future?
