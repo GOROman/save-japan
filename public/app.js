@@ -133,7 +133,7 @@ function render() {
       ),
     );
     timer.textContent = `${remaining}s`;
-    if (remaining <= 10) timer.style.color = "#ff4059";
+    timer.classList.toggle("urgent", remaining <= 10);
   }
   $("missionNumber").textContent = active
     ? state.phase === "boss"

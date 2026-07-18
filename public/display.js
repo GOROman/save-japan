@@ -31,10 +31,9 @@ document.body.append(cutin);
 let knownPlayers = null;
 let showingJoin = false;
 let previousMission = -1;
+let visualPhase = "";
 const clock = document.createElement("strong");
 clock.id = "clock";
-clock.style.cssText =
-  "color:#fff;font-size:24px;margin-left:12px;font-variant-numeric:tabular-nums";
 clock.textContent = "60s";
 document.querySelector(".live").append(clock);
 async function enableAudio() {
@@ -95,19 +94,23 @@ socket.on("missionComplete", ({ victory }) => {
   }
 });
 setInterval(() => {
-  if (state?.phase === "playing") {
+  if (["login", "playing", "boss"].includes(state?.phase)) {
     const left = Math.max(
       0,
       Math.ceil((state.endsAt - (Date.now() + clockOffset)) / 1000),
     );
     clock.textContent = `${left}s`;
-    clock.style.color = left <= 10 ? "#ff4059" : "#fff";
+    clock.classList.toggle("urgent", left <= 10);
   }
 }, 100);
 function render() {
   if (!state) return;
   $("playerCount").textContent = state.players;
   $("regionCount").textContent = state.prefectures.length;
+  clock.classList.toggle(
+    "hidden",
+    !["login", "playing", "boss"].includes(state.phase),
+  );
   $("lobby").classList.toggle(
     "hidden",
     !["lobby", "login"].includes(state.phase),
@@ -126,14 +129,15 @@ function render() {
   $("start").textContent = "START 120-SECOND EXPERIENCE";
   if (["lobby", "login"].includes(state.phase)) {
     $("recent").innerHTML = state.recentPlayers
-      .slice(0, 12)
+      .slice(0, 8)
       .map(
         (p) =>
-          `<span class="chip">🚀 <b>${safe(p.nickname)}</b> · ${safe(p.prefecture)}</span>`,
+          `<span class="chip">🚀 <b>${safe(p.nickname)}</b> · ${prefectureJapanese(p.prefecture)}</span>`,
       )
       .join("");
   }
   if (["playing", "boss"].includes(state.phase)) {
+    updateEnemyVisuals();
     const m = state.missions[state.missionIndex];
     $("missionNumber").textContent =
       state.phase === "boss"
@@ -151,7 +155,10 @@ function render() {
     $("progressBar").style.width =
       `${Math.min(100, state.phase === "boss" ? (state.genki / state.genkiTarget) * 100 : (state.missionScore / state.missionTarget) * 100)}%`;
     $("regions").innerHTML = state.prefectures
-      .map((r) => `<span class="region">${safe(r.name)} ×${r.count}</span>`)
+      .map(
+        (r) =>
+          `<span class="region">${prefectureJapanese(r.name)} ×${r.count}</span>`,
+      )
       .join("");
     if (previousMission !== state.missionIndex) {
       $("japanMap").className = `japan-map camera-${state.missionIndex}`;
@@ -161,7 +168,7 @@ function render() {
       .slice(0, 24)
       .map(
         (p, i) =>
-          `<span class="ship" title="${safe(p.nickname)} · ${safe(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/player-ship-blue.png" alt=""><small><b>${safe(p.nickname)}</b><br>${safe(p.prefecture)}</small></span>`,
+          `<span class="ship" title="${safe(p.nickname)} · ${prefectureJapanese(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/player-ship-blue.png" alt=""><small><b>${safe(p.nickname)}</b><br>${prefectureJapanese(p.prefecture)}</small></span>`,
       )
       .join("");
   }
@@ -170,6 +177,26 @@ function render() {
     $("finalRegions").textContent = state.prefectures.length;
   }
   updateActiveRegions();
+}
+function updateEnemyVisuals() {
+  const space = document.querySelector(".space");
+  space.classList.toggle("game-mode", state.phase === "playing");
+  space.classList.toggle("boss-mode", state.phase === "boss");
+  $("bossHud").classList.toggle("hidden", state.phase !== "boss");
+  if (state.phase === "boss") {
+    const hp = Math.max(0, 100 - (state.genki / state.genkiTarget) * 100);
+    $("bossHp").style.width = `${hp}%`;
+  }
+  if (visualPhase === state.phase) return;
+  visualPhase = state.phase;
+  $("enemyFleet").innerHTML =
+    state.phase === "playing"
+      ? Array.from(
+          { length: 7 },
+          (_, index) =>
+            `<img src="/assets/ufo-closeup-red.png" alt="Enemy UFO" style="--i:${index}">`,
+        ).join("")
+      : "";
 }
 function updateActiveRegions() {
   document
