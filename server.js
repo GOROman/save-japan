@@ -115,6 +115,18 @@ const prefectureNames = [
   "Okinawa",
 ];
 const debugTimers = new Set();
+const debugUnlockSequence = [
+  "ArrowUp",
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowRight",
+  "KeyB",
+  "KeyA",
+];
 function clearDebugTimers() {
   for (const timer of debugTimers) clearTimeout(timer);
   debugTimers.clear();
@@ -241,6 +253,24 @@ async function generateMissions() {
 io.on("connection", (socket) => {
   socket.emit("state", publicState());
 
+  socket.on("host:debugKey", ({ code } = {}) => {
+    if (socket.data.debugUnlocked) return;
+    const index = socket.data.debugSequenceIndex || 0;
+    socket.data.debugSequenceIndex =
+      code === debugUnlockSequence[index]
+        ? index + 1
+        : code === debugUnlockSequence[0]
+          ? 1
+          : 0;
+    if (socket.data.debugSequenceIndex === debugUnlockSequence.length) {
+      socket.data.debugSequenceIndex = 0;
+      socket.data.debugUnlocked = true;
+      socket.emit("host:debugMode", { enabled: true });
+    }
+  });
+
+  const debugAllowed = () => socket.data.debugUnlocked === true;
+
   socket.on("join", ({ nickname, prefecture }, reply = () => {}) => {
     const player = {
       id: randomUUID(),
@@ -346,6 +376,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host:boss", () => {
+    if (!debugAllowed()) return;
     clearDebugTimers();
     const now = Date.now();
     state.phase = "bossWarning";
@@ -361,6 +392,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host:fire", () => {
+    if (!debugAllowed()) return;
     if (state.phase !== "boss") return;
     state.genki = Math.max(8, state.players.size * 6);
     const prefectures = [...state.players.values()].map(
@@ -383,6 +415,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host:debugAttack", ({ prefecture = "Tokyo" } = {}) => {
+    if (!debugAllowed()) return;
     if (state.phase !== "playing" || state.enemies.length === 0) return;
     const matchingPlayers = [...state.players.values()].filter(
       (player) => player.prefecture === prefecture,
@@ -422,6 +455,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("host:bossAttack", ({ prefecture = "Tokyo" } = {}) => {
+    if (!debugAllowed()) return;
     if (state.phase !== "boss") return;
     const target = Math.max(8, state.players.size * 6);
     const damage = Math.max(1, Math.ceil(target / 20));
@@ -466,6 +500,7 @@ io.on("connection", (socket) => {
     broadcast();
   });
   socket.on("host:debug60", () => {
+    if (!debugAllowed()) return;
     clearDebugTimers();
     for (const [key, player] of state.players) {
       if (player.debug) state.players.delete(key);

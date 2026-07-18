@@ -1,13 +1,72 @@
 const socket = io();
 let state = null,
   audioReady = false,
-  clockOffset = 0;
+  clockOffset = 0,
+  debugMode = false;
 const $ = (id) => document.getElementById(id);
+const displayCopies = {
+  ja: {
+    brand: "全国防衛司令部", live: "LIVE", pilots: "PILOTS", regions: "REGIONS",
+    problemKicker: "THE PROBLEM", problemTitle: "今の日本に<br />足りないのは、<em>「元気」</em>", problemCopy: "個人の元気を、地域を越えた大きな力へ。",
+    solutionKicker: "THE SOLUTION", solutionTitle: "<span>キミの故郷からログイン！</span><span>47都道府県が配置。</span><span>30秒で集結。</span>",
+    experienceKicker: "THE EXPERIENCE", experienceTitle: "120秒で、日本を救え。", phaseRow: "<b>30</b><span>JOIN<br />QRで参戦</span><i>→</i><b>60</b><span>PLAY<br />元気を集める</span><i>→</i><b>30</b><span>BOSS<br />全員で発射</span>",
+    openaiKicker: "BUILT WITH OPENAI", openaiTitle: "<span>AIが、会場全体を</span><span><em>ひとつのチーム</em>にする。</span>", openaiCopy: "GPT-5.6がミッションを創り、Codexが体験を実装。",
+    presentation: "← → プレゼンテーション", qr: "スキャンして参戦", boss: "⚠ 巨大UFO · ラストボス",
+    victoryKicker: "MISSION COMPLETE", victoryTitle: "日本は<br />救われた・・", victoryCopy: "47都道府県の元気が、日本をひとつにした。", top: "トップ5 パイロット",
+    start: "ゲーム開始", built: "Codex + GPT-5.6で開発", finalPhase: "最終フェーズ · ボス戦", mission: "ミッション", of: "/ 3", energy: "エネルギー", genki: "元気",
+    missions: [["シールドを展開せよ", "故郷の防衛グリッドをチャージ"], ["UFOを迎撃せよ", "日本へ到達する前に協力して攻撃"], ["全国元気リレー", "地域を越えて元気を送ろう"], ["日本を救え！", "全国の元気で一斉攻撃"]],
+  },
+  en: {
+    brand: "National Defense Command", live: "LIVE", pilots: "PILOTS", regions: "REGIONS",
+    problemKicker: "THE PROBLEM", problemTitle: "Japan is missing<br />one vital force: <em>GENKI.</em>", problemCopy: "Turn individual energy into one nationwide force.",
+    solutionKicker: "THE SOLUTION", solutionTitle: "<span>Join from your hometown.</span><span>All 47 prefectures.</span><span>United in 30 seconds.</span>",
+    experienceKicker: "THE EXPERIENCE", experienceTitle: "Save Japan in 120 seconds.", phaseRow: "<b>30</b><span>JOIN<br />Scan the QR</span><i>→</i><b>60</b><span>PLAY<br />Build GENKI</span><i>→</i><b>30</b><span>BOSS<br />Fire together</span>",
+    openaiKicker: "BUILT WITH OPENAI", openaiTitle: "<span>AI turns an entire venue</span><span>into <em>one team.</em></span>", openaiCopy: "GPT-5.6 creates the mission. Codex built the experience.",
+    presentation: "← → PRESENTATION", qr: "SCAN TO JOIN", boss: "⚠ GIANT UFO · FINAL BOSS",
+    victoryKicker: "MISSION COMPLETE", victoryTitle: "JAPAN<br />IS SAVED.", victoryCopy: "The energy of 47 prefectures united Japan.", top: "TOP 5 PILOTS",
+    start: "START GAME", built: "Built with Codex + GPT-5.6", finalPhase: "FINAL PHASE · BOSS BATTLE", mission: "MISSION", of: "OF 3", energy: "ENERGY", genki: "GENKI", missions: null,
+  },
+  zh: {
+    brand: "全国防卫指挥部", live: "直播", pilots: "飞行员", regions: "地区",
+    problemKicker: "当前挑战", problemTitle: "今天的日本<br />缺少的是<em>“元气”</em>", problemCopy: "把每个人的元气汇聚成跨越地区的力量。",
+    solutionKicker: "解决方案", solutionTitle: "<span>从你的故乡登录！</span><span>日本47个都道府县。</span><span>30秒内集结。</span>",
+    experienceKicker: "游戏体验", experienceTitle: "在120秒内拯救日本。", phaseRow: "<b>30</b><span>加入<br />扫描二维码</span><i>→</i><b>60</b><span>战斗<br />汇聚元气</span><i>→</i><b>30</b><span>首领<br />全员发射</span>",
+    openaiKicker: "由 OPENAI 驱动", openaiTitle: "<span>AI让整个会场</span><span>成为<em>一支队伍</em>。</span>", openaiCopy: "GPT-5.6生成任务，Codex构建完整体验。",
+    presentation: "← → 演示", qr: "扫码参战", boss: "⚠ 巨型UFO · 最终首领",
+    victoryKicker: "任务完成", victoryTitle: "日本<br />得救了……", victoryCopy: "47个都道府县的元气，让日本团结一心。", top: "前5名飞行员",
+    start: "开始游戏", built: "使用 Codex + GPT-5.6 构建", finalPhase: "最终阶段 · 首领战", mission: "任务", of: "/ 3", energy: "能量", genki: "元气",
+    missions: [["启动防护盾", "为故乡的防卫系统充能"], ["拦截UFO", "在敌人抵达日本前协力攻击"], ["全国元气接力", "跨越地区传递元气"], ["拯救日本！", "汇聚全国元气发动同步攻击"]],
+  },
+};
+let displayLocale = localStorage.getItem("saveJapan.displayLocale") || "ja";
+if (!displayCopies[displayLocale]) displayLocale = "ja";
+let displayCopy = displayCopies[displayLocale];
 const gameQrOverlay = document.createElement("div");
 gameQrOverlay.className = "game-qr-overlay hidden";
 gameQrOverlay.innerHTML =
   '<img src="/api/qr" alt="Join QR code"><strong>SCAN TO JOIN</strong>';
 document.body.append(gameQrOverlay);
+function applyDisplayLocale(locale) {
+  if (!displayCopies[locale]) return;
+  displayLocale = locale;
+  displayCopy = displayCopies[locale];
+  localStorage.setItem("saveJapan.displayLocale", locale);
+  document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
+  const text = (id, value) => ($(id).textContent = value);
+  const html = (id, value) => ($(id).innerHTML = value);
+  text("displayBrand", displayCopy.brand); text("liveLabel", displayCopy.live); text("pilotsLabel", displayCopy.pilots); text("regionsLabel", displayCopy.regions);
+  text("problemKicker", displayCopy.problemKicker); html("problemTitle", displayCopy.problemTitle); text("problemCopy", displayCopy.problemCopy);
+  text("solutionKicker", displayCopy.solutionKicker); html("solutionTitle", displayCopy.solutionTitle);
+  text("experienceKicker", displayCopy.experienceKicker); text("experienceTitle", displayCopy.experienceTitle); html("phaseRow", displayCopy.phaseRow);
+  text("openaiKicker", displayCopy.openaiKicker); html("openaiTitle", displayCopy.openaiTitle); text("openaiCopy", displayCopy.openaiCopy);
+  text("presentationLabel", displayCopy.presentation); text("qrLabel", displayCopy.qr); text("bossLabel", displayCopy.boss);
+  text("victoryKicker", displayCopy.victoryKicker); html("displayVictoryTitle", displayCopy.victoryTitle); text("displayVictoryCopy", displayCopy.victoryCopy); text("topPilotsLabel", displayCopy.top); text("builtLabel", displayCopy.built);
+  gameQrOverlay.querySelector("strong").textContent = displayCopy.qr;
+  document.querySelectorAll("[data-display-locale]").forEach((button) => button.classList.toggle("active", button.dataset.displayLocale === locale));
+  render();
+}
+document.querySelectorAll("[data-display-locale]").forEach((button) => button.addEventListener("click", () => applyDisplayLocale(button.dataset.displayLocale)));
+applyDisplayLocale(displayLocale);
 const commentLayer = document.createElement("div");
 commentLayer.className = "live-comments";
 document.body.append(commentLayer);
@@ -49,11 +108,15 @@ const attackCommentTemplates = [
   (p, n) => `${p}の${n}、スーパー迎撃！`,
 ];
 function attackComment(prefecture, nickname = "パイロット") {
+  if (displayLocale === "en")
+    return `${nickname} from ${prefectureLabel(prefecture)} launches a brilliant counterattack!`;
+  if (displayLocale === "zh")
+    return `来自${prefectureLabel(prefecture)}的${nickname}发动精彩反击！`;
   const template =
     attackCommentTemplates[
       Math.floor(Math.random() * attackCommentTemplates.length)
     ];
-  return template(prefectureJapanese(prefecture), nickname);
+  return template(prefectureLabel(prefecture), nickname);
 }
 const destroyCommentTemplates = [
   (p, n) => `${p}の${n}がUFO撃破！！`,
@@ -68,11 +131,15 @@ const destroyCommentTemplates = [
   (_p, n) => `${n}、ナイスキル！！`,
 ];
 function destroyComment(prefecture, nickname = "パイロット") {
+  if (displayLocale === "en")
+    return `${nickname} from ${prefectureLabel(prefecture)} destroyed a UFO!`;
+  if (displayLocale === "zh")
+    return `来自${prefectureLabel(prefecture)}的${nickname}击毁了UFO！`;
   const template =
     destroyCommentTemplates[
       Math.floor(Math.random() * destroyCommentTemplates.length)
     ];
-  return template(prefectureJapanese(prefecture), nickname);
+  return template(prefectureLabel(prefecture), nickname);
 }
 $("joinUrl").textContent = location.origin;
 const lobbyMap = $("japanMap").cloneNode(true);
@@ -92,8 +159,19 @@ function showSlide(next) {
     .querySelector(".qr-card")
     .classList.toggle("qr-visible", slideIndex > 0);
 }
+function setDebugMode(enabled) {
+  debugMode = Boolean(enabled);
+  document.body.classList.toggle("debug-enabled", debugMode);
+  if (debugMode) {
+    liveComment("DEBUG MODE ENABLED", "impact");
+    if (audioReady) SaveJapanAudio.launch();
+  }
+}
+socket.on("host:debugMode", ({ enabled }) => setDebugMode(enabled));
+socket.on("disconnect", () => setDebugMode(false));
 window.addEventListener("keydown", (event) => {
   enableAudio();
+  if (!event.repeat) socket.emit("host:debugKey", { code: event.code });
   if (["lobby", "login"].includes(state?.phase || "lobby")) {
     if (event.key === "ArrowRight") showSlide(slideIndex + 1);
     if (event.key === "ArrowLeft") showSlide(slideIndex - 1);
@@ -101,15 +179,16 @@ window.addEventListener("keydown", (event) => {
   if (event.code === "Space") {
     event.preventDefault();
     if ((state?.phase || "lobby") === "lobby") $("start").click();
-    else if (state?.phase === "boss") debugHomingAttack();
+    else if (debugMode && state?.phase === "boss") debugHomingAttack();
   }
   if (
+    debugMode &&
     event.key.toLowerCase() === "d" &&
     ["lobby", "login"].includes(state?.phase || "lobby")
   )
     $("debug60").click();
-  if (event.key.toLowerCase() === "b") $("boss").click();
-  if (event.key.toLowerCase() === "x") $("finalFire").click();
+  if (debugMode && event.key.toLowerCase() === "b") $("boss").click();
+  if (debugMode && event.key.toLowerCase() === "x") $("finalFire").click();
   if (event.key.toLowerCase() === "f") toggleFullscreen();
   if (event.key.toLowerCase() === "q") gameQrOverlay.classList.toggle("hidden");
   if (event.key.toLowerCase() === "r") $("reset").click();
@@ -124,6 +203,7 @@ async function toggleFullscreen() {
 }
 window.addEventListener("pointerdown", (event) => {
   if (
+    !debugMode ||
     event.target.closest("button, a, input, select") ||
     !["playing", "boss"].includes(state?.phase)
   )
@@ -131,6 +211,7 @@ window.addEventListener("pointerdown", (event) => {
   debugHomingAttack();
 });
 function debugHomingAttack() {
+  if (!debugMode) return;
   const joined = state?.prefectures?.map(({ name }) => name) || [];
   const pool = joined.length
     ? joined
@@ -177,10 +258,11 @@ $("reset").onclick = () => {
   if (audioReady) SaveJapanAudio.stopMusic();
   socket.emit("host:reset");
 };
-$("debug60").onclick = () => socket.emit("host:debug60");
-$("boss").onclick = () => socket.emit("host:boss");
+$("debug60").onclick = () => debugMode && socket.emit("host:debug60");
+$("boss").onclick = () => debugMode && socket.emit("host:boss");
 $("qrToggle").onclick = () => gameQrOverlay.classList.toggle("hidden");
 $("finalFire").onclick = () => {
+  if (!debugMode) return;
   if (audioReady) SaveJapanAudio.hissatsu();
   socket.emit("host:fire");
 };
@@ -201,7 +283,12 @@ socket.on("state", (s) => {
   render();
 });
 socket.on("generating", () => {
-  $("start").textContent = "GPT-5.6 IS CREATING MISSIONS…";
+  $("start").textContent =
+    displayLocale === "zh"
+      ? "GPT-5.6正在生成任务…"
+      : displayLocale === "ja"
+        ? "GPT-5.6がミッション生成中…"
+        : "GPT-5.6 IS CREATING MISSIONS…";
   $("start").disabled = true;
 });
 socket.on("pulse", ({ prefecture }) => {
@@ -246,7 +333,14 @@ socket.on("enemyDestroyed", ({ id, nickname, prefecture }) => {
 });
 socket.on("enemyAttack", ({ region }) => fireEnemyLaser(region));
 socket.on("bossCritical", () => {
-  liveComment("今だ！全員で必殺攻撃を発射！！", "danger");
+  liveComment(
+    displayLocale === "zh"
+      ? "就是现在！全员发动必杀攻击！"
+      : displayLocale === "en"
+        ? "NOW! EVERYONE LAUNCH THE FINAL ATTACK!"
+        : "今だ！全員で必殺攻撃を発射！！",
+    "danger",
+  );
   if (audioReady) SaveJapanAudio.hissatsu();
   document.body.animate(
     [
@@ -310,12 +404,19 @@ socket.on("phaseChange", ({ phase }) => {
   if (phase === "boss") showBossCutin();
 });
 function showApproachWarning() {
-  liveComment("でかいの来たぞ！！！", "danger");
+  liveComment(
+    displayLocale === "zh"
+      ? "巨型敌舰正在接近！！！"
+      : displayLocale === "en"
+        ? "A GIANT BATTLESHIP IS APPROACHING!"
+        : "でかいの来たぞ！！！",
+    "danger",
+  );
   if (audioReady) SaveJapanAudio.alert();
   cutin.classList.add("approach-cutin");
   cutin.querySelector("small").textContent = "⚠ EMERGENCY TRANSMISSION";
   cutin.querySelector("strong").innerHTML =
-    '<span class="approach-message warning-only">WARNING</span><b>ボス襲撃！</b>';
+    `<span class="approach-message warning-only">WARNING</span><b>${displayLocale === "zh" ? "首领来袭！" : displayLocale === "en" ? "BOSS ATTACK!" : "ボス襲撃！"}</b>`;
   let ticker = cutin.querySelector("em");
   if (ticker)
     ticker.textContent =
@@ -331,13 +432,31 @@ function showApproachWarning() {
   }, 3600);
 }
 function showBossCutin() {
-  liveComment("みんなの元気をひとつに！", "impact");
+  liveComment(
+    displayLocale === "zh"
+      ? "汇聚所有人的元气！"
+      : displayLocale === "en"
+        ? "UNITE EVERYONE'S GENKI!"
+        : "みんなの元気をひとつに！",
+    "impact",
+  );
   if (audioReady) SaveJapanAudio.alert();
   cutin.classList.add("boss-cutin");
   cutin.querySelector("small").textContent = "⚠ WARNING · GIANT UFO DETECTED";
-  cutin.querySelector("strong").textContent = "ボス襲撃！";
+  cutin.querySelector("strong").textContent =
+    displayLocale === "zh"
+      ? "首领来袭！"
+      : displayLocale === "en"
+        ? "BOSS ATTACK!"
+        : "ボス襲撃！";
   let ticker = cutin.querySelector("em");
-  if (ticker) ticker.textContent = "全国の元気を集めろ。全員で必殺攻撃を発射！";
+  if (ticker)
+    ticker.textContent =
+      displayLocale === "zh"
+        ? "汇聚全国元气，全员发动必杀攻击！"
+        : displayLocale === "en"
+          ? "Gather nationwide GENKI. Everyone launch the final attack!"
+          : "全国の元気を集めろ。全員で必殺攻撃を発射！";
   cutin.classList.remove("hidden", "animate");
   void cutin.getBoundingClientRect();
   cutin.classList.add("animate");
@@ -388,13 +507,13 @@ function render() {
     !["lobby", "login"].includes(state.phase),
   );
   $("start").disabled = false;
-  $("start").innerHTML = "<kbd>SPACE</kbd> START GAME";
+  $("start").innerHTML = `<kbd>SPACE</kbd> ${displayCopy.start}`;
   if (["lobby", "login"].includes(state.phase)) {
     $("recent").innerHTML = state.recentPlayers
       .slice(0, 8)
       .map(
         (p) =>
-          `<span class="chip">🚀 <b>${safe(p.nickname)}</b> · ${prefectureJapanese(p.prefecture)}</span>`,
+          `<span class="chip">🚀 <b>${safe(p.nickname)}</b> · ${prefectureLabel(p.prefecture)}</span>`,
       )
       .join("");
   }
@@ -402,26 +521,27 @@ function render() {
     updateEnemyVisuals();
     renderPrefectureMarkers();
     const m = state.missions[state.missionIndex];
+    const localizedMission = displayCopy.missions?.[state.missionIndex];
     $("missionNumber").textContent = ["boss", "bossDefeat"].includes(
       state.phase,
     )
-      ? "FINAL PHASE · BOSS BATTLE"
-      : `MISSION ${state.missionIndex + 1} OF 3`;
+      ? displayCopy.finalPhase
+      : `${displayCopy.mission} ${state.missionIndex + 1} ${displayCopy.of}`;
     $("missionIcon").textContent = m.icon;
-    $("missionTitle").textContent = m.title;
-    $("missionBrief").textContent = m.brief;
+    $("missionTitle").textContent = localizedMission?.[0] || m.title;
+    $("missionBrief").textContent = localizedMission?.[1] || m.brief;
     $("score").textContent = ["boss", "bossDefeat"].includes(state.phase)
       ? state.genki
       : state.missionScore;
     $("target").textContent = ["boss", "bossDefeat"].includes(state.phase)
-      ? `/ ${state.genkiTarget} GENKI`
-      : `/ ${state.missionTarget} ENERGY`;
+      ? `/ ${state.genkiTarget} ${displayCopy.genki}`
+      : `/ ${state.missionTarget} ${displayCopy.energy}`;
     $("progressBar").style.width =
       `${Math.min(100, ["boss", "bossDefeat"].includes(state.phase) ? (state.genki / state.genkiTarget) * 100 : (state.missionScore / state.missionTarget) * 100)}%`;
     $("regions").innerHTML = state.prefectures
       .map(
         (r) =>
-          `<span class="region">${prefectureJapanese(r.name)} ×${r.count}</span>`,
+          `<span class="region">${prefectureLabel(r.name)} ×${r.count}</span>`,
       )
       .join("");
     if (previousMission !== state.missionIndex) {
@@ -432,18 +552,22 @@ function render() {
       .slice(0, 24)
       .map(
         (p, i) =>
-          `<span class="ship" title="${safe(p.nickname)} · ${prefectureJapanese(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][i % 4]}.png" alt=""><small><b>${safe(p.nickname)}</b><br>${prefectureJapanese(p.prefecture)}</small></span>`,
+          `<span class="ship" title="${safe(p.nickname)} · ${prefectureLabel(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][i % 4]}.png" alt=""><small><b>${safe(p.nickname)}</b><br>${prefectureLabel(p.prefecture)}</small></span>`,
       )
       .join("");
   }
   if (state.phase === "victory") {
-    $("finalPlayers").textContent = state.players;
-    $("finalRegions").textContent = state.prefectures.length;
+    $("displayStats").textContent =
+      displayLocale === "zh"
+        ? `${state.players}名飞行员 · ${state.prefectures.length}个地区 · 同一个日本`
+        : displayLocale === "ja"
+          ? `${state.players} PILOTS · ${state.prefectures.length} 都道府県 · ONE JAPAN`
+          : `${state.players} PILOTS · ${state.prefectures.length} REGIONS · ONE JAPAN`;
     $("leaderboard").innerHTML = state.leaderboard
       .slice(0, 5)
       .map(
         (player, index) =>
-          `<li class="rank-${index + 1}"><b><i>${["🏆", "🥈", "🥉"][index] || index + 1}</i>${safe(player.nickname)}</b><span>${prefectureJapanese(player.prefecture)} · UFO ${player.ufoKills ?? 0} / BOSS ${player.bossDamage ?? 0}</span><strong>${player.score ?? 0}</strong></li>`,
+          `<li class="rank-${index + 1}"><b><i>${["🏆", "🥈", "🥉"][index] || index + 1}</i>${safe(player.nickname)}</b><span>${prefectureLabel(player.prefecture)} · UFO ${player.ufoKills ?? 0} / BOSS ${player.bossDamage ?? 0}</span><strong>${player.score ?? 0}</strong></li>`,
       )
       .join("");
   }
@@ -545,7 +669,7 @@ function firePrefectureBeam(prefecture, enemyId = null) {
   pulse.className = "prefecture-blast";
   pulse.style.left = `${startX}px`;
   pulse.style.top = `${startY}px`;
-  pulse.innerHTML = `<b>${prefectureJapanese(prefecture)}</b>`;
+  pulse.innerHTML = `<b>${prefectureLabel(prefecture)}</b>`;
   const missile = document.createElement("i");
   missile.className = "homing-missile";
   const direction = startX < targetX ? 1 : -1;
@@ -614,7 +738,7 @@ function renderPrefectureMarkers() {
     .map(([name, [x, y]]) => {
       const left = mapRect.left - spaceRect.left + mapRect.width * x;
       const top = mapRect.top - spaceRect.top + mapRect.height * y;
-      return `<i class="prefecture-marker ${active.has(name) ? "online" : ""}" style="left:${left}px;top:${top}px" title="${prefectureJapanese(name)}"></i>`;
+      return `<i class="prefecture-marker ${active.has(name) ? "online" : ""}" style="left:${left}px;top:${top}px" title="${prefectureLabel(name)}"></i>`;
     })
     .join("");
 }
@@ -710,7 +834,13 @@ function showPlayerCutin(player) {
   const item = document.createElement("div");
   item.className = `join-cutin multi ${sequence % 2 ? "from-right" : "from-left"}`;
   item.style.top = `${96 + lane * 66}px`;
-  item.innerHTML = `<img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][joinCutinSequence % 4]}.png" alt=""><div><small>INTERCEPTOR ONLINE</small><strong>${safe(player.nickname)} が ${prefectureJapanese(player.prefecture)}から参戦！</strong></div>`;
+  const joinMessage =
+    displayLocale === "en"
+      ? `${safe(player.nickname)} joins from ${prefectureLabel(player.prefecture)}!`
+      : displayLocale === "zh"
+        ? `${safe(player.nickname)}从${prefectureLabel(player.prefecture)}加入战斗！`
+        : `${safe(player.nickname)} が ${prefectureLabel(player.prefecture)}から参戦！`;
+  item.innerHTML = `<img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][joinCutinSequence % 4]}.png" alt=""><div><small>INTERCEPTOR ONLINE</small><strong>${joinMessage}</strong></div>`;
   document.body.append(item);
   pulseRegion(player.prefecture);
   setTimeout(() => item.remove(), 2100);
@@ -759,7 +889,7 @@ function regionFor(prefecture) {
     )?.[0] || "kanto"
   );
 }
-function prefectureJapanese(prefecture) {
+function prefectureLabel(prefecture) {
   const names = {
     Hokkaido: "北海道",
     Aomori: "青森県",
@@ -809,7 +939,28 @@ function prefectureJapanese(prefecture) {
     Kagoshima: "鹿児島県",
     Okinawa: "沖縄県",
   };
-  return names[prefecture] || prefecture;
+  if (displayLocale === "en") return prefecture;
+  const label = names[prefecture] || prefecture;
+  if (displayLocale !== "zh") return label;
+  return label
+    .replaceAll("県", "县")
+    .replaceAll("宮", "宫")
+    .replaceAll("島", "岛")
+    .replaceAll("馬", "马")
+    .replaceAll("葉", "叶")
+    .replaceAll("東", "东")
+    .replaceAll("長", "长")
+    .replaceAll("静", "静")
+    .replaceAll("岡", "冈")
+    .replaceAll("愛", "爱")
+    .replaceAll("賀", "贺")
+    .replaceAll("庫", "库")
+    .replaceAll("鳥", "鸟")
+    .replaceAll("広", "广")
+    .replaceAll("徳", "德")
+    .replaceAll("児", "儿")
+    .replaceAll("沖", "冲")
+    .replaceAll("縄", "绳");
 }
 function safe(s) {
   const e = document.createElement("span");

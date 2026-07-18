@@ -17,12 +17,19 @@
     <main class="display">
       <header>
         <div class="brand">
-          <span class="brand-mark">日</span> National Defense Command
+          <span class="brand-mark">日</span>
+          <span id="displayBrand">National Defense Command</span>
         </div>
         <div class="live">
-          <i></i> LIVE · <b id="playerCount">0</b> PILOTS ·
-          <b id="regionCount">0</b>/47 REGIONS
+          <i></i> <span id="liveLabel">LIVE</span> ·
+          <b id="playerCount">0</b> <span id="pilotsLabel">PILOTS</span> ·
+          <b id="regionCount">0</b>/47 <span id="regionsLabel">REGIONS</span>
         </div>
+        <nav class="display-language-switcher" aria-label="Language">
+          <button type="button" data-display-locale="ja">日本語</button>
+          <button type="button" data-display-locale="en">English</button>
+          <button type="button" data-display-locale="zh">中文</button>
+        </nav>
       </header>
       <section id="lobby" class="stage lobby">
         <div class="pitch">
@@ -36,13 +43,13 @@
               <div class="title-version">VERSION 1.1</div>
             </article>
             <article class="pitch-slide pitch-copy ai-slide">
-              <div class="slide-kicker">THE PROBLEM</div>
-              <h2>今の日本に<br />足りないのは、<em>「元気」</em></h2>
-              <p>個人の元気を、地域を越えた大きな力へ。</p>
+              <div id="problemKicker" class="slide-kicker">THE PROBLEM</div>
+              <h2 id="problemTitle">今の日本に<br />足りないのは、<em>「元気」</em></h2>
+              <p id="problemCopy">個人の元気を、地域を越えた大きな力へ。</p>
             </article>
             <article class="pitch-slide pitch-map-slide">
-              <div class="slide-kicker">THE SOLUTION</div>
-              <h2>
+              <div id="solutionKicker" class="slide-kicker">THE SOLUTION</div>
+              <h2 id="solutionTitle">
                 <span>キミの故郷からログイン！</span>
                 <span>47都道府県が配置。</span>
                 <span>30秒で集結。</span>
@@ -50,30 +57,30 @@
               <div id="mapSlideTarget"></div>
             </article>
             <article class="pitch-slide pitch-copy">
-              <div class="slide-kicker">THE EXPERIENCE</div>
-              <h2>120秒で、日本を救え。</h2>
-              <div class="phase-row">
+              <div id="experienceKicker" class="slide-kicker">THE EXPERIENCE</div>
+              <h2 id="experienceTitle">120秒で、日本を救え。</h2>
+              <div id="phaseRow" class="phase-row">
                 <b>30</b><span>JOIN<br />QRで参戦</span><i>→</i><b>60</b
                 ><span>PLAY<br />元気を集める</span><i>→</i><b>30</b
                 ><span>BOSS<br />全員で発射</span>
               </div>
             </article>
             <article class="pitch-slide pitch-copy">
-              <div class="slide-kicker">BUILT WITH OPENAI</div>
-              <h2>
+              <div id="openaiKicker" class="slide-kicker">BUILT WITH OPENAI</div>
+              <h2 id="openaiTitle">
                 <span>AIが、会場全体を</span>
                 <span><em>ひとつのチーム</em>にする。</span>
               </h2>
-              <p>GPT-5.6 creates the mission. Codex built the experience.</p>
+              <p id="openaiCopy">GPT-5.6 creates the mission. Codex built the experience.</p>
             </article>
           </div>
           <div class="slide-nav">
-            <span id="slideCount">01 / 05</span><span>← → PRESENTATION</span>
+            <span id="slideCount">01 / 05</span><span id="presentationLabel">← → PRESENTATION</span>
           </div>
           <div id="recent" class="recent"></div>
         </div>
         <div class="qr-card">
-          <img src="/api/qr" alt="Join QR code" /><strong>SCAN TO JOIN</strong
+          <img src="/api/qr" alt="Join QR code" /><strong id="qrLabel">SCAN TO JOIN</strong
           ><small id="joinUrl"></small>
         </div>
       </section>
@@ -86,7 +93,7 @@
           />
           <div id="enemyFleet" class="enemy-fleet"></div>
           <div id="bossHud" class="boss-hud hidden">
-            <span>⚠ GIANT UFO · LAST BOSS</span>
+            <span id="bossLabel">⚠ GIANT UFO · LAST BOSS</span>
             <div><i id="bossHp"></i></div>
           </div>
           <img
@@ -115,26 +122,24 @@
         <div class="victory-content">
           <div class="victory-summary">
             <div class="flag">🇯🇵</div>
-            <div class="eyebrow">MISSION COMPLETE</div>
-            <h1>日本は<br />救われた・・</h1>
-            <p>47都道府県の元気が、日本をひとつにした。</p>
-            <div class="stats">
-              <b id="finalPlayers">0</b> PILOTS ·
-              <b id="finalRegions">0</b> 都道府県 · ONE JAPAN
-            </div>
+            <div id="victoryKicker" class="eyebrow">MISSION COMPLETE</div>
+            <h1 id="displayVictoryTitle">日本は<br />救われた・・</h1>
+            <p id="displayVictoryCopy">47都道府県の元気が、日本をひとつにした。</p>
+            <div id="displayStats" class="stats"></div>
           </div>
           <div class="result-ranking">
-            <div class="eyebrow">TOP 5 PILOTS</div>
+            <div id="topPilotsLabel" class="eyebrow">TOP 5 PILOTS</div>
             <ol id="leaderboard"></ol>
           </div>
         </div>
       </section>
       <footer>
-        <span>Built with Codex + GPT-5.6</span
+        <span id="builtLabel">Built with Codex + GPT-5.6</span
+        ><span id="debugStatus" class="debug-status">DEBUG MODE</span
         ><button id="start"><kbd>SPACE</kbd> START</button
-        ><button id="debug60" class="secondary"><kbd>D</kbd> DEBUG 60</button
-        ><button id="boss" class="secondary"><kbd>B</kbd> BOSS</button
-        ><button id="finalFire" class="secondary"><kbd>X</kbd> FIRE</button
+        ><button id="debug60" class="secondary debug-control"><kbd>D</kbd> DEBUG 60</button
+        ><button id="boss" class="secondary debug-control"><kbd>B</kbd> BOSS</button
+        ><button id="finalFire" class="secondary debug-control"><kbd>X</kbd> FIRE</button
         ><button id="qrToggle" class="secondary"><kbd>Q</kbd> QR</button
         ><button id="reset" class="secondary"><kbd>R</kbd> RESET</button>
       </footer>

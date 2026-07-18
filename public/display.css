@@ -201,6 +201,25 @@ body.result-reveal .victory-screen:not(.hidden) {
   justify-content: space-between;
   align-items: center;
 }
+.display-language-switcher {
+  display: flex;
+  gap: 5px;
+}
+.display-language-switcher button {
+  padding: 6px 9px;
+  border: 1px solid #294760;
+  border-radius: 999px;
+  background: #071321dd;
+  color: #7894ad;
+  font-size: 10px;
+  font-weight: 900;
+  cursor: pointer;
+}
+.display-language-switcher button.active {
+  border-color: #45e983;
+  color: #7dffa8;
+  box-shadow: 0 0 16px #26e97c33;
+}
 .live {
   font-size: 13px;
   letter-spacing: 0.08em;
@@ -1738,4 +1757,21 @@ body.boss-warning {
   margin-left: 0;
   background: #18283a;
   color: #9eb4ca;
+}
+.debug-control,
+.debug-status {
+  display: none !important;
+}
+body.debug-enabled .debug-control {
+  display: inline-block !important;
+}
+body.debug-enabled .debug-status {
+  display: inline-block !important;
+  padding: 5px 9px;
+  border: 1px solid #ff4264;
+  border-radius: 999px;
+  color: #ff6b82;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  box-shadow: 0 0 18px #ff234855;
 }
