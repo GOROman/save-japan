@@ -12,5 +12,8 @@
     "openai": "^5.10.2",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1"
+  },
+  "devDependencies": {
+    "socket.io-client": "^4.8.3"
   }
 }
