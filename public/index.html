@@ -12,6 +12,17 @@
   </head>
   <body>
     <main class="shell">
+      <nav class="language-switcher" aria-label="Language">
+        <button type="button" data-locale="ja" aria-pressed="false">
+          日本語
+        </button>
+        <button type="button" data-locale="en" aria-pressed="false">
+          English
+        </button>
+        <button type="button" data-locale="zh" aria-pressed="false">
+          中文
+        </button>
+      </nav>
       <div class="brand">
         <span class="brand-mark">日</span>
         <span id="networkName">全国防衛ネットワーク</span>
@@ -70,8 +81,10 @@
           src="/assets/save-japan-key-art.png"
           alt="Japan protected"
         />
-        <h2>日本は<br />救われた・・</h2>
-        <p>47都道府県、ひとつのチーム。<br />この元気を、現実の日本へ。</p>
+        <h2 id="victoryTitle">日本は<br />救われた・・</h2>
+        <p id="victoryCopy">
+          47都道府県、ひとつのチーム。<br />この元気を、現実の日本へ。
+        </p>
         <div class="mobile-ranking">
           <h3 id="mobileRankingTitle">トップランキング</h3>
           <ol id="mobileLeaderboard"></ol>
