@@ -3,6 +3,72 @@ let state = null,
   audioReady = false,
   clockOffset = 0;
 const $ = (id) => document.getElementById(id);
+const commentLayer = document.createElement("div");
+commentLayer.className = "live-comments";
+document.body.append(commentLayer);
+let commentSequence = 0;
+let lastCommentAt = 0;
+function liveComment(message, tone = "normal") {
+  const now = Date.now();
+  if (tone === "normal" && now - lastCommentAt < 1600) return;
+  if (tone === "normal" && Math.random() > 0.12) return;
+  lastCommentAt = now;
+  const item = document.createElement("span");
+  item.className = `live-comment ${tone}`;
+  item.style.setProperty("--lane", commentSequence++ % 7);
+  item.style.setProperty("--speed", `${5.8 + Math.random() * 3}s`);
+  item.textContent = message;
+  commentLayer.append(item);
+  setTimeout(() => item.remove(), 9200);
+}
+const attackCommentTemplates = [
+  (p, n) => `${p}の${n}が素晴らしい反撃！`,
+  (p, n) => `${p}代表・${n}、迎撃成功！`,
+  (p, n) => `${n}の一撃がUFOを捉えた！`,
+  (p) => `${p}からミサイル発射！`,
+  (p, n) => `${n}、故郷の元気を力に変えた！`,
+  (p) => `${p}防衛隊、ナイスホーミング！`,
+  (_p, n) => `${n}の軌道が美しすぎる！`,
+  (p) => `${p}の反撃が始まった！`,
+  (_p, n) => `${n}、敵の死角を突いた！`,
+  (p) => `${p}の元気が日本を守る！`,
+  (_p, n) => `${n}のミサイルが直撃！`,
+  (p) => `${p}、ここで会心の一撃！`,
+  (_p, n) => `${n}、完璧な迎撃コース！`,
+  (p) => `${p}から熱い援護射撃！`,
+  (_p, n) => `${n}の反撃に会場が沸く！`,
+  (p) => `${p}の防衛ラインは崩れない！`,
+  (_p, n) => `${n}、日本の空を守り切れ！`,
+  (p) => `${p}の一撃が戦況を変える！`,
+  (_p, n) => `${n}、そのまま押し切れ！`,
+  (p, n) => `${p}の${n}、スーパー迎撃！`,
+];
+function attackComment(prefecture, nickname = "パイロット") {
+  const template =
+    attackCommentTemplates[
+      Math.floor(Math.random() * attackCommentTemplates.length)
+    ];
+  return template(prefectureJapanese(prefecture), nickname);
+}
+const destroyCommentTemplates = [
+  (p, n) => `${p}の${n}がUFO撃破！！`,
+  (p, n) => `${n}、${p}の空を守り切った！`,
+  (p, n) => `${p}代表${n}、敵機を完全撃破！`,
+  (_p, n) => `${n}のホーミングが決まったー！`,
+  (p) => `${p}防衛隊、UFOを粉砕！`,
+  (p, n) => `${p}の${n}、会心の撃破！`,
+  (_p, n) => `${n}が敵機を撃ち落とした！`,
+  (p) => `${p}上空の脅威を排除！`,
+  (p, n) => `${n}の一撃で${p}に勝利の光！`,
+  (_p, n) => `${n}、ナイスキル！！`,
+];
+function destroyComment(prefecture, nickname = "パイロット") {
+  const template =
+    destroyCommentTemplates[
+      Math.floor(Math.random() * destroyCommentTemplates.length)
+    ];
+  return template(prefectureJapanese(prefecture), nickname);
+}
 $("joinUrl").textContent = location.origin;
 const lobbyMap = $("japanMap").cloneNode(true);
 lobbyMap.id = "lobbyJapanMap";
@@ -17,31 +83,85 @@ function showSlide(next) {
   );
   $("slideCount").textContent =
     `${String(slideIndex + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
+  document
+    .querySelector(".qr-card")
+    .classList.toggle("qr-visible", slideIndex > 0);
 }
 window.addEventListener("keydown", (event) => {
-  if (!["lobby", "login"].includes(state?.phase || "lobby")) return;
-  if (event.key === "ArrowRight") showSlide(slideIndex + 1);
-  if (event.key === "ArrowLeft") showSlide(slideIndex - 1);
+  enableAudio();
+  if (["lobby", "login"].includes(state?.phase || "lobby")) {
+    if (event.key === "ArrowRight") showSlide(slideIndex + 1);
+    if (event.key === "ArrowLeft") showSlide(slideIndex - 1);
+  }
+  if (event.code === "Space") {
+    event.preventDefault();
+    if ((state?.phase || "lobby") === "lobby") $("start").click();
+    else if (state?.phase === "boss") debugHomingAttack();
+  }
+  if (
+    event.key.toLowerCase() === "d" &&
+    ["lobby", "login"].includes(state?.phase || "lobby")
+  )
+    $("debug60").click();
+  if (event.key.toLowerCase() === "b") $("boss").click();
+  if (event.key.toLowerCase() === "x") $("finalFire").click();
+  if (event.key.toLowerCase() === "f") toggleFullscreen();
+  if (event.key.toLowerCase() === "r") $("reset").click();
 });
+async function toggleFullscreen() {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen();
+  } catch (error) {
+    console.warn("Fullscreen unavailable", error);
+  }
+}
+window.addEventListener("pointerdown", (event) => {
+  if (
+    event.target.closest("button, a, input, select") ||
+    !["playing", "boss"].includes(state?.phase)
+  )
+    return;
+  debugHomingAttack();
+});
+function debugHomingAttack() {
+  const joined = state?.prefectures?.map(({ name }) => name) || [];
+  const pool = joined.length
+    ? joined
+    : Object.keys(prefectureCoordinateTable());
+  const prefecture = pool[Math.floor(Math.random() * pool.length)];
+  if (state?.phase === "playing") {
+    socket.emit("host:debugAttack", { prefecture });
+    return;
+  }
+  if (state?.phase === "boss") {
+    socket.emit("host:bossAttack", { prefecture });
+    return;
+  }
+  const enemies = [...document.querySelectorAll("[data-enemy-id]")];
+  const enemy = enemies[Math.floor(Math.random() * enemies.length)];
+  pulseRegion(prefecture);
+  firePrefectureBeam(prefecture, enemy?.dataset.enemyId || null);
+  if (audioReady) SaveJapanAudio.laser();
+}
 const cutin = document.createElement("div");
 cutin.className = "join-cutin hidden";
 cutin.innerHTML =
-  '<img src="/assets/player-ship-blue.png" alt=""><div><small>NEW INTERCEPTOR ONLINE</small><strong></strong></div>';
+  '<img src="/assets/sprites/interceptor-yellow.png" alt=""><div><small>NEW INTERCEPTOR ONLINE</small><strong></strong></div>';
 document.body.append(cutin);
 let knownPlayers = null;
-let showingJoin = false;
 let previousMission = -1;
 let visualPhase = "";
+let joinCutinSequence = 0;
 const clock = document.createElement("strong");
 clock.id = "clock";
 clock.textContent = "60s";
 document.querySelector(".live").append(clock);
 async function enableAudio() {
   if (!audioReady) {
-    await import("/audio.js");
+    SaveJapanAudio.init();
     audioReady = true;
   }
-  SaveJapanAudio.init();
 }
 $("start").onclick = async () => {
   await enableAudio();
@@ -52,10 +172,19 @@ $("reset").onclick = () => {
   socket.emit("host:reset");
 };
 $("debug60").onclick = () => socket.emit("host:debug60");
+$("boss").onclick = () => socket.emit("host:boss");
+$("finalFire").onclick = () => {
+  if (audioReady) SaveJapanAudio.hissatsu();
+  socket.emit("host:fire");
+};
+socket.on("debugStarted", () => {
+  $("debug60").textContent = "SIMULATING 60 RANDOM LOGINS…";
+});
 socket.on("debugLoaded", ({ players }) => {
   const button = $("debug60");
-  button.textContent = `✓ ${players} PILOTS LOADED`;
-  setTimeout(() => (button.textContent = "DEBUG: 60 PILOTS"), 1800);
+  button.textContent = `SIMULATING… ${players} / 60`;
+  if (players >= 60)
+    setTimeout(() => (button.textContent = "DEBUG: 60 PILOTS"), 1800);
 });
 socket.on("state", (s) => {
   announceNewPlayers(s);
@@ -80,8 +209,79 @@ socket.on("pulse", ({ prefecture }) => {
       { duration: 220 },
     );
   pulseRegion(prefecture);
-  firePrefectureBeam(prefecture);
+  if (state?.phase === "boss") firePrefectureBeam(prefecture);
 });
+socket.on("enemyHit", ({ id, prefecture, nickname }) => {
+  firePrefectureBeam(prefecture, id);
+  liveComment(attackComment(prefecture, nickname));
+});
+socket.on("enemyDestroyed", ({ id, nickname, prefecture }) => {
+  const enemy = document.querySelector(`[data-enemy-id="${id}"]`);
+  if (!enemy) return;
+  const space = document.querySelector(".space");
+  const enemyRect = enemy.getBoundingClientRect();
+  const spaceRect = space.getBoundingClientRect();
+  const explosion = document.createElement("img");
+  explosion.className = "ufo-explosion";
+  explosion.src = "/assets/sprites/explosion-cartoon.png";
+  explosion.alt = "";
+  explosion.style.left = `${enemyRect.left - spaceRect.left + enemyRect.width / 2}px`;
+  explosion.style.top = `${enemyRect.top - spaceRect.top + enemyRect.height / 2}px`;
+  $("beamLayer").append(explosion);
+  enemy.classList.add("destroyed");
+  liveComment(destroyComment(prefecture || "Tokyo", nickname), "impact");
+  setTimeout(() => enemy.remove(), 520);
+  setTimeout(() => explosion.remove(), 900);
+});
+socket.on("enemyAttack", ({ region }) => fireEnemyLaser(region));
+socket.on("bossCritical", () => {
+  liveComment("今だ！全員で必殺攻撃を発射！！", "danger");
+  if (audioReady) SaveJapanAudio.hissatsu();
+  document.body.animate(
+    [
+      { filter: "brightness(1)" },
+      { filter: "brightness(3) saturate(2)" },
+      { filter: "brightness(1)" },
+    ],
+    { duration: 900 },
+  );
+  const hud = $("bossHud");
+  hud.animate(
+    [
+      { transform: "translateX(-50%) scale(1)" },
+      { transform: "translateX(-50%) scale(1.35)" },
+      { transform: "translateX(-50%) scale(1)" },
+    ],
+    { duration: 800 },
+  );
+});
+socket.on("bossDefeatSequence", showBossDefeatSequence);
+socket.on("bossDefeated", () => {
+  document.body.classList.add("result-reveal");
+  if (audioReady) SaveJapanAudio.victory();
+  setTimeout(() => document.body.classList.remove("result-reveal"), 4200);
+});
+function showBossDefeatSequence() {
+  if (audioReady) SaveJapanAudio.hissatsu();
+  const finale = document.createElement("div");
+  finale.className = "boss-finale";
+  document.body.append(finale);
+  let blast = 0;
+  const explosions = setInterval(() => {
+    const image = document.createElement("img");
+    image.src = "/assets/sprites/explosion-cartoon.png";
+    image.style.left = `${35 + Math.random() * 30}%`;
+    image.style.top = `${8 + Math.random() * 32}%`;
+    image.style.setProperty("--blast-size", `${90 + Math.random() * 150}px`);
+    image.style.setProperty("--blast-rotate", `${-25 + Math.random() * 50}deg`);
+    finale.append(image);
+    setTimeout(() => image.remove(), 1100);
+    blast += 1;
+    if (blast >= 30) clearInterval(explosions);
+  }, 125);
+  setTimeout(() => finale.classList.add("whiteout"), 3650);
+  setTimeout(() => finale.remove(), 5350);
+}
 socket.on("missionComplete", ({ victory }) => {
   if (victory) {
     if (audioReady) SaveJapanAudio.victory();
@@ -93,14 +293,64 @@ socket.on("missionComplete", ({ victory }) => {
     );
   }
 });
+socket.on("phaseChange", ({ phase }) => {
+  if (phase === "bossWarning") showApproachWarning();
+  if (phase === "boss") showBossCutin();
+});
+function showApproachWarning() {
+  liveComment("でかいの来たぞ！！！", "danger");
+  if (audioReady) SaveJapanAudio.alert();
+  cutin.classList.add("approach-cutin");
+  cutin.querySelector("small").textContent = "⚠ EMERGENCY TRANSMISSION";
+  cutin.querySelector("strong").innerHTML =
+    '<span class="approach-message">A HUGE BATTLESHIP FATTY GLUTTON-G IS APPROACHING FAST.</span><b>ボス襲撃！</b>';
+  let ticker = cutin.querySelector("em");
+  if (ticker)
+    ticker.textContent =
+      "UNKNOWN ENERGY SIGNATURE · MAXIMUM THREAT LEVEL · BRACE FOR IMPACT";
+  cutin.classList.remove("hidden", "animate");
+  void cutin.getBoundingClientRect();
+  cutin.classList.add("animate");
+  document.body.classList.add("boss-warning");
+  setTimeout(() => {
+    cutin.classList.add("hidden");
+    cutin.classList.remove("approach-cutin");
+    document.body.classList.remove("boss-warning");
+  }, 3600);
+}
+function showBossCutin() {
+  liveComment("みんなの元気をひとつに！", "impact");
+  if (audioReady) SaveJapanAudio.alert();
+  cutin.classList.add("boss-cutin");
+  cutin.querySelector("small").textContent = "⚠ WARNING · GIANT UFO DETECTED";
+  cutin.querySelector("strong").textContent = "ボス襲撃！";
+  let ticker = cutin.querySelector("em");
+  if (ticker) ticker.textContent = "全国の元気を集めろ。全員で必殺攻撃を発射！";
+  cutin.classList.remove("hidden", "animate");
+  void cutin.getBoundingClientRect();
+  cutin.classList.add("animate");
+  document.body.classList.add("boss-warning");
+  setTimeout(() => {
+    cutin.classList.add("hidden");
+    cutin.classList.remove("boss-cutin");
+    cutin.querySelector("small").textContent = "NEW INTERCEPTOR ONLINE";
+    document.body.classList.remove("boss-warning");
+  }, 2800);
+}
 setInterval(() => {
-  if (["login", "playing", "boss"].includes(state?.phase)) {
+  if (["login", "playing", "bossWarning", "boss"].includes(state?.phase)) {
     const left = Math.max(
       0,
       Math.ceil((state.endsAt - (Date.now() + clockOffset)) / 1000),
     );
     clock.textContent = `${left}s`;
     clock.classList.toggle("urgent", left <= 10);
+    document.body.classList.toggle(
+      "final-ten",
+      state?.phase === "boss" && left <= 10,
+    );
+  } else {
+    document.body.classList.remove("final-ten");
   }
 }, 100);
 function render() {
@@ -109,7 +359,7 @@ function render() {
   $("regionCount").textContent = state.prefectures.length;
   clock.classList.toggle(
     "hidden",
-    !["login", "playing", "boss"].includes(state.phase),
+    !["login", "playing", "bossWarning", "boss"].includes(state.phase),
   );
   $("lobby").classList.toggle(
     "hidden",
@@ -117,7 +367,7 @@ function render() {
   );
   $("battle").classList.toggle(
     "hidden",
-    !["playing", "boss"].includes(state.phase),
+    !["playing", "bossWarning", "boss", "bossDefeat"].includes(state.phase),
   );
   $("victory").classList.toggle("hidden", state.phase !== "victory");
   $("start").classList.toggle("hidden", state.phase !== "lobby");
@@ -126,7 +376,7 @@ function render() {
     !["lobby", "login"].includes(state.phase),
   );
   $("start").disabled = false;
-  $("start").textContent = "START 120-SECOND EXPERIENCE";
+  $("start").innerHTML = "<kbd>SPACE</kbd> START GAME";
   if (["lobby", "login"].includes(state.phase)) {
     $("recent").innerHTML = state.recentPlayers
       .slice(0, 8)
@@ -136,24 +386,26 @@ function render() {
       )
       .join("");
   }
-  if (["playing", "boss"].includes(state.phase)) {
+  if (["playing", "boss", "bossDefeat"].includes(state.phase)) {
     updateEnemyVisuals();
+    renderPrefectureMarkers();
     const m = state.missions[state.missionIndex];
-    $("missionNumber").textContent =
-      state.phase === "boss"
-        ? "FINAL PHASE · BOSS BATTLE"
-        : `MISSION ${state.missionIndex + 1} OF 3`;
+    $("missionNumber").textContent = ["boss", "bossDefeat"].includes(
+      state.phase,
+    )
+      ? "FINAL PHASE · BOSS BATTLE"
+      : `MISSION ${state.missionIndex + 1} OF 3`;
     $("missionIcon").textContent = m.icon;
     $("missionTitle").textContent = m.title;
     $("missionBrief").textContent = m.brief;
-    $("score").textContent =
-      state.phase === "boss" ? state.genki : state.missionScore;
-    $("target").textContent =
-      state.phase === "boss"
-        ? `/ ${state.genkiTarget} GENKI`
-        : `/ ${state.missionTarget} ENERGY`;
+    $("score").textContent = ["boss", "bossDefeat"].includes(state.phase)
+      ? state.genki
+      : state.missionScore;
+    $("target").textContent = ["boss", "bossDefeat"].includes(state.phase)
+      ? `/ ${state.genkiTarget} GENKI`
+      : `/ ${state.missionTarget} ENERGY`;
     $("progressBar").style.width =
-      `${Math.min(100, state.phase === "boss" ? (state.genki / state.genkiTarget) * 100 : (state.missionScore / state.missionTarget) * 100)}%`;
+      `${Math.min(100, ["boss", "bossDefeat"].includes(state.phase) ? (state.genki / state.genkiTarget) * 100 : (state.missionScore / state.missionTarget) * 100)}%`;
     $("regions").innerHTML = state.prefectures
       .map(
         (r) =>
@@ -168,34 +420,60 @@ function render() {
       .slice(0, 24)
       .map(
         (p, i) =>
-          `<span class="ship" title="${safe(p.nickname)} · ${prefectureJapanese(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/player-ship-blue.png" alt=""><small><b>${safe(p.nickname)}</b><br>${prefectureJapanese(p.prefecture)}</small></span>`,
+          `<span class="ship" title="${safe(p.nickname)} · ${prefectureJapanese(p.prefecture)}" style="animation-delay:${(i % 7) * 0.12}s"><img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][i % 4]}.png" alt=""><small><b>${safe(p.nickname)}</b><br>${prefectureJapanese(p.prefecture)}</small></span>`,
       )
       .join("");
   }
   if (state.phase === "victory") {
     $("finalPlayers").textContent = state.players;
     $("finalRegions").textContent = state.prefectures.length;
+    $("leaderboard").innerHTML = state.leaderboard
+      .slice(0, 5)
+      .map(
+        (player, index) =>
+          `<li class="rank-${index + 1}"><b><i>${["🏆", "🥈", "🥉"][index] || index + 1}</i>${safe(player.nickname)}</b><span>${prefectureJapanese(player.prefecture)} · UFO ${player.ufoKills ?? 0} / BOSS ${player.bossDamage ?? 0}</span><strong>${player.score ?? 0}</strong></li>`,
+      )
+      .join("");
   }
   updateActiveRegions();
 }
 function updateEnemyVisuals() {
   const space = document.querySelector(".space");
   space.classList.toggle("game-mode", state.phase === "playing");
-  space.classList.toggle("boss-mode", state.phase === "boss");
-  $("bossHud").classList.toggle("hidden", state.phase !== "boss");
-  if (state.phase === "boss") {
+  space.classList.toggle(
+    "boss-mode",
+    ["boss", "bossDefeat"].includes(state.phase),
+  );
+  space.classList.toggle("incoming-mode", state.phase === "bossWarning");
+  $("bossHud").classList.toggle(
+    "hidden",
+    !["boss", "bossDefeat"].includes(state.phase),
+  );
+  if (["boss", "bossDefeat"].includes(state.phase)) {
     const hp = Math.max(0, 100 - (state.genki / state.genkiTarget) * 100);
     $("bossHp").style.width = `${hp}%`;
   }
-  if (visualPhase === state.phase) return;
+  const phaseChanged = visualPhase !== state.phase;
   visualPhase = state.phase;
+  if (state.phase === "boss" && phaseChanged) {
+    const hud = $("bossHud");
+    hud.classList.remove("boss-hud-arrival");
+    void hud.getBoundingClientRect();
+    hud.classList.add("boss-hud-arrival");
+  }
   $("enemyFleet").innerHTML =
     state.phase === "playing"
-      ? Array.from(
-          { length: 7 },
-          (_, index) =>
-            `<img src="/assets/ufo-closeup-red.png" alt="Enemy UFO" style="--i:${index}">`,
-        ).join("")
+      ? state.enemies
+          .map((enemy, index) => {
+            const x = 5 + enemy.lane * 86;
+            const y = 2 + (index % 3) * 24;
+            const hp = Math.max(0, (enemy.hp / enemy.maxHp) * 100);
+            const sprite = ["ufo-scout", "ufo-scanner", "ufo-heavy"][
+              enemy.id % 3
+            ];
+            return `<span class="enemy-unit" data-enemy-id="${enemy.id}" style="left:${x}%;top:${y}%;--i:${index}"><img src="/assets/sprites/${sprite}.png" alt="Enemy UFO"><i><b style="width:${hp}%"></b></i></span>`;
+          })
+          .join("")
       : "";
 }
 function updateActiveRegions() {
@@ -220,37 +498,128 @@ function pulseRegion(prefecture) {
       setTimeout(() => region.classList.remove("pulse"), 420);
     });
 }
-function firePrefectureBeam(prefecture) {
+function firePrefectureBeam(prefecture, enemyId = null) {
   const position = prefecturePosition(prefecture);
   const space = document.querySelector(".space");
   const map = $("japanMap");
   const layer = $("beamLayer");
   if (!space || !map || !layer) return;
   const spaceRect = space.getBoundingClientRect();
-  const mapRect = map.getBoundingClientRect();
+  const mapRect = mapContentRect(map);
   const startX = mapRect.left - spaceRect.left + mapRect.width * position[0];
   const startY = mapRect.top - spaceRect.top + mapRect.height * position[1];
-  const targetX = spaceRect.width * 0.5;
-  const targetY = spaceRect.height * 0.16;
-  const distance = Math.hypot(targetX - startX, targetY - startY);
-  const angle =
-    (Math.atan2(targetY - startY, targetX - startX) * 180) / Math.PI;
+  const enemy = enemyId
+    ? document.querySelector(`[data-enemy-id="${enemyId}"]`)
+    : null;
+  const enemyRect = enemy?.getBoundingClientRect();
+  const targetX = enemyRect
+    ? enemyRect.left - spaceRect.left + enemyRect.width / 2
+    : spaceRect.width * 0.5;
+  const targetY = enemyRect
+    ? enemyRect.top - spaceRect.top + enemyRect.height / 2
+    : spaceRect.height * 0.16;
   const pulse = document.createElement("span");
   pulse.className = "prefecture-blast";
   pulse.style.left = `${startX}px`;
   pulse.style.top = `${startY}px`;
   pulse.innerHTML = `<b>${prefectureJapanese(prefecture)}</b>`;
-  const beam = document.createElement("i");
-  beam.className = "attack-beam";
-  beam.style.cssText = `left:${startX}px;top:${startY}px;width:${distance}px;transform:rotate(${angle}deg)`;
-  layer.append(pulse, beam);
+  const missile = document.createElement("i");
+  missile.className = "homing-missile";
+  missile.style.setProperty(
+    "--missile-sprite",
+    `url("/assets/sprites/missile-${["blue", "purple", "red"][Math.floor(Math.random() * 3)]}.png")`,
+  );
+  const direction = startX < targetX ? 1 : -1;
+  const jitter = () => (Math.random() - 0.5) * 190;
+  const lift = Math.min(startY, targetY);
+  missile.style.setProperty("--flight-time", `${0.72 + Math.random() * 0.55}s`);
+  missile.style.offsetPath = `path("M ${startX} ${startY} C ${startX + direction * (90 + Math.random() * 160)} ${startY + jitter()} ${startX + jitter()} ${lift - 30 - Math.random() * 130} ${startX + (targetX - startX) * 0.48} ${lift + jitter()} S ${targetX + jitter()} ${targetY + jitter() * 0.25} ${targetX} ${targetY}")`;
+  layer.append(pulse, missile);
   setTimeout(() => {
     pulse.remove();
-    beam.remove();
+    missile.remove();
+  }, 1400);
+}
+function fireEnemyLaser(region) {
+  const representatives = {
+    hokkaido: "Hokkaido",
+    tohoku: "Miyagi",
+    kanto: "Tokyo",
+    chubu: "Aichi",
+    kinki: "Osaka",
+    chugoku: "Hiroshima",
+    shikoku: "Ehime",
+    kyushu: "Fukuoka",
+  };
+  const target = prefecturePosition(representatives[region] || "Tokyo");
+  const space = document.querySelector(".space");
+  const map = $("japanMap");
+  const layer = $("beamLayer");
+  if (!space || !map || !layer) return;
+  const spaceRect = space.getBoundingClientRect();
+  const mapRect = mapContentRect(map);
+  const endX = mapRect.left - spaceRect.left + mapRect.width * target[0];
+  const endY = mapRect.top - spaceRect.top + mapRect.height * target[1];
+  const startX = spaceRect.width * (0.12 + Math.random() * 0.76);
+  const startY = -10;
+  const length = Math.hypot(endX - startX, endY - startY);
+  const angle = (Math.atan2(endY - startY, endX - startX) * 180) / Math.PI;
+  const laser = document.createElement("i");
+  laser.className = "enemy-laser";
+  laser.style.cssText = `left:${startX}px;top:${startY}px;width:${length}px;transform:rotate(${angle}deg)`;
+  const impact = document.createElement("i");
+  impact.className = "enemy-impact";
+  impact.style.cssText = `left:${endX}px;top:${endY}px`;
+  layer.append(laser, impact);
+  setTimeout(() => {
+    laser.remove();
+    impact.remove();
   }, 700);
 }
+function renderPrefectureMarkers() {
+  const space = document.querySelector(".space");
+  const map = $("japanMap");
+  const layer = $("beamLayer");
+  if (!space || !map || !layer) return;
+  const spaceRect = space.getBoundingClientRect();
+  const mapRect = mapContentRect(map);
+  const active = new Set(state.prefectures.map(({ name }) => name));
+  let markerLayer = $("prefectureMarkers");
+  if (!markerLayer) {
+    markerLayer = document.createElement("div");
+    markerLayer.id = "prefectureMarkers";
+    markerLayer.className = "prefecture-markers";
+    layer.prepend(markerLayer);
+  }
+  markerLayer.innerHTML = Object.entries(prefectureCoordinateTable())
+    .map(([name, [x, y]]) => {
+      const left = mapRect.left - spaceRect.left + mapRect.width * x;
+      const top = mapRect.top - spaceRect.top + mapRect.height * y;
+      return `<i class="prefecture-marker ${active.has(name) ? "online" : ""}" style="left:${left}px;top:${top}px" title="${prefectureJapanese(name)}"></i>`;
+    })
+    .join("");
+}
+function mapContentRect(map) {
+  const box = map.getBoundingClientRect();
+  const ratio =
+    map.naturalWidth && map.naturalHeight
+      ? map.naturalWidth / map.naturalHeight
+      : 0.8;
+  const width = Math.min(box.width, box.height * ratio);
+  const height = width / ratio;
+  return {
+    left: box.left + (box.width - width) / 2,
+    top: box.top + (box.height - height) / 2,
+    width,
+    height,
+  };
+}
 function prefecturePosition(prefecture) {
-  const coordinates = {
+  const coordinates = prefectureCoordinateTable();
+  return coordinates[prefecture] || [0.58, 0.52];
+}
+function prefectureCoordinateTable() {
+  return {
     Hokkaido: [0.77, 0.1],
     Aomori: [0.67, 0.24],
     Iwate: [0.68, 0.29],
@@ -299,7 +668,6 @@ function prefecturePosition(prefecture) {
     Kagoshima: [0.15, 0.81],
     Okinawa: [0.08, 0.91],
   };
-  return coordinates[prefecture] || [0.58, 0.52];
 }
 function announceNewPlayers(nextState) {
   const current = new Set(nextState.recentPlayers.map((player) => player.id));
@@ -312,38 +680,21 @@ function announceNewPlayers(nextState) {
   knownPlayers = current;
 }
 function playJoinWave(players) {
-  showingJoin = true;
-  cutin.querySelector("strong").textContent =
-    players.length === 1
-      ? `${players[0].nickname} が ${prefectureJapanese(players[0].prefecture)}から参戦！`
-      : players.length <= 5
-        ? `${players.map((player) => player.nickname).join("・")} が参戦！`
-        : `${players.length}人が全国から一斉参戦！`;
-  let ticker = cutin.querySelector("em");
-  if (!ticker) {
-    ticker = document.createElement("em");
-    cutin.querySelector("div").append(ticker);
-  }
-  ticker.textContent = players
-    .slice(0, 12)
-    .map(
-      (player) =>
-        `${player.nickname} / ${prefectureJapanese(player.prefecture)}`,
-    )
-    .join("  ◆  ");
-  cutin.classList.remove("hidden", "animate");
-  void cutin.getBoundingClientRect();
-  cutin.classList.add("animate");
+  players.forEach((player, index) => {
+    setTimeout(() => showPlayerCutin(player), index * 110);
+  });
   [...new Set(players.map((player) => player.prefecture))].forEach(pulseRegion);
-  lobbyMap.classList.add("camera-punch");
-  setTimeout(() => lobbyMap.classList.remove("camera-punch"), 900);
-  setTimeout(
-    () => {
-      cutin.classList.add("hidden");
-      showingJoin = false;
-    },
-    players.length >= 6 ? 2600 : 1800,
-  );
+}
+function showPlayerCutin(player) {
+  const sequence = joinCutinSequence++;
+  const lane = sequence % 4;
+  const item = document.createElement("div");
+  item.className = `join-cutin multi ${sequence % 2 ? "from-right" : "from-left"}`;
+  item.style.top = `${96 + lane * 66}px`;
+  item.innerHTML = `<img src="/assets/sprites/interceptor-${["yellow", "green", "red", "purple"][joinCutinSequence % 4]}.png" alt=""><div><small>INTERCEPTOR ONLINE</small><strong>${safe(player.nickname)} が ${prefectureJapanese(player.prefecture)}から参戦！</strong></div>`;
+  document.body.append(item);
+  pulseRegion(player.prefecture);
+  setTimeout(() => item.remove(), 2100);
 }
 function regionFor(prefecture) {
   const regions = {

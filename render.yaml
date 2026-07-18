@@ -1,0 +1,16 @@
+services:
+  - type: web
+    name: save-japan
+    runtime: node
+    region: singapore
+    plan: starter
+    branch: main
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: 22
+      - key: OPENAI_API_KEY
+        sync: false
