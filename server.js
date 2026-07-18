@@ -11,68 +11,216 @@ const io = new Server(server);
 const port = process.env.PORT || 3000;
 
 app.use(express.static("public"));
-app.get("/display", (_req, res) => res.sendFile(new URL("./public/display.html", import.meta.url).pathname));
+app.use("/assets", express.static("assets"));
+app.get("/display", (_req, res) =>
+  res.sendFile(new URL("./public/display.html", import.meta.url).pathname),
+);
 
 const defaultMissions = [
-  { id: "shield", icon: "🛡️", title: "Raise the Shields", brief: "Charge your hometown defense grid", duration: 15 },
-  { id: "strike", icon: "🛸", title: "Intercept the UFOs", brief: "Fire together before they reach Japan", duration: 15 },
-  { id: "relay", icon: "⚡", title: "National Energy Relay", brief: "Send power beyond your own region", duration: 20 },
-  { id: "final", icon: "🇯🇵", title: "Save Japan!", brief: "Everyone attack for the final defense", duration: 10 }
+  {
+    id: "shield",
+    icon: "🛡️",
+    title: "Raise the Shields",
+    brief: "Charge your hometown defense grid",
+    duration: 20,
+  },
+  {
+    id: "strike",
+    icon: "🛸",
+    title: "Intercept the UFOs",
+    brief: "Fire together before they reach Japan",
+    duration: 20,
+  },
+  {
+    id: "relay",
+    icon: "⚡",
+    title: "National Energy Relay",
+    brief: "Send power beyond your own region",
+    duration: 20,
+  },
+  {
+    id: "final",
+    icon: "🇯🇵",
+    title: "Save Japan!",
+    brief: "Everyone attack for the final defense",
+    duration: 30,
+  },
 ];
 
 const state = {
-  phase: "lobby", missionIndex: 0, missions: defaultMissions,
-  players: new Map(), score: 0, missionScore: 0,
-  startedAt: null, endsAt: null, lastAction: new Map()
+  phase: "lobby",
+  missionIndex: 0,
+  missions: defaultMissions,
+  players: new Map(),
+  score: 0,
+  missionScore: 0,
+  genki: 0,
+  launchVotes: new Set(),
+  startedAt: null,
+  endsAt: null,
+  lastAction: new Map(),
 };
 
+const prefectureNames = [
+  "Hokkaido",
+  "Aomori",
+  "Iwate",
+  "Miyagi",
+  "Akita",
+  "Yamagata",
+  "Fukushima",
+  "Ibaraki",
+  "Tochigi",
+  "Gunma",
+  "Saitama",
+  "Chiba",
+  "Tokyo",
+  "Kanagawa",
+  "Niigata",
+  "Toyama",
+  "Ishikawa",
+  "Fukui",
+  "Yamanashi",
+  "Nagano",
+  "Gifu",
+  "Shizuoka",
+  "Aichi",
+  "Mie",
+  "Shiga",
+  "Kyoto",
+  "Osaka",
+  "Hyogo",
+  "Nara",
+  "Wakayama",
+  "Tottori",
+  "Shimane",
+  "Okayama",
+  "Hiroshima",
+  "Yamaguchi",
+  "Tokushima",
+  "Kagawa",
+  "Ehime",
+  "Kochi",
+  "Fukuoka",
+  "Saga",
+  "Nagasaki",
+  "Kumamoto",
+  "Oita",
+  "Miyazaki",
+  "Kagoshima",
+  "Okinawa",
+];
+
 function targetFor(index = state.missionIndex) {
-  return Math.max(12, Math.ceil(Math.max(1, state.players.size) * [5, 7, 9, 6][index]));
+  return Math.max(
+    12,
+    Math.ceil(Math.max(1, state.players.size) * [6, 7, 8, 6][index]),
+  );
 }
 
 function publicState() {
   const players = [...state.players.values()];
-  const prefectures = Object.entries(players.reduce((all, p) => {
-    all[p.prefecture] = (all[p.prefecture] || 0) + 1;
-    return all;
-  }, {})).map(([name, count]) => ({ name, count }));
+  const prefectures = Object.entries(
+    players.reduce((all, p) => {
+      all[p.prefecture] = (all[p.prefecture] || 0) + 1;
+      return all;
+    }, {}),
+  ).map(([name, count]) => ({ name, count }));
   return {
-    phase: state.phase, missionIndex: state.missionIndex, missions: state.missions,
-    score: state.score, missionScore: state.missionScore, missionTarget: targetFor(),
-    players: players.length, prefectures, recentPlayers: players.slice(-8).reverse(), activePlayers: players.slice(-30),
-    startedAt: state.startedAt, endsAt: state.endsAt, serverNow: Date.now()
+    phase: state.phase,
+    missionIndex: state.missionIndex,
+    missions: state.missions,
+    score: state.score,
+    missionScore: state.missionScore,
+    missionTarget: targetFor(),
+    genki: state.genki,
+    genkiTarget: Math.max(8, state.players.size * 6),
+    launchVotes: state.launchVotes.size,
+    players: players.length,
+    prefectures,
+    recentPlayers: players.slice(-60).reverse(),
+    activePlayers: players.slice(-30),
+    startedAt: state.startedAt,
+    endsAt: state.endsAt,
+    serverNow: Date.now(),
   };
 }
 
-function broadcast() { io.emit("state", publicState()); }
+function broadcast() {
+  io.emit("state", publicState());
+}
 
 async function generateMissions() {
   if (!process.env.OPENAI_API_KEY) return defaultMissions;
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const regions = [...new Set([...state.players.values()].map(p => p.prefecture))];
+  const regions = [
+    ...new Set([...state.players.values()].map((p) => p.prefecture)),
+  ];
   try {
     const response = await openai.responses.create({
       model: "gpt-5.6",
-      input: `Create four short, exciting stages for a 60-second cooperative UFO defense game called Save Japan. Players represent: ${regions.join(", ") || "all Japan"}. Stage 1 raises regional shields, stage 2 intercepts UFOs, stage 3 relays energy between regions, stage 4 is a synchronized final attack. Use exactly 15, 15, 20, and 10 seconds. Return concise English UI copy.`,
-      text: { format: { type: "json_schema", name: "missions", strict: true, schema: { type: "object", properties: { missions: { type: "array", minItems: 4, maxItems: 4, items: { type: "object", properties: { id:{type:"string"}, icon:{type:"string"}, title:{type:"string"}, brief:{type:"string"}, duration:{type:"number"} }, required:["id","icon","title","brief","duration"], additionalProperties:false } } }, required:["missions"], additionalProperties:false } } }
+      input: `Create four short, exciting stages for Save Japan, a cooperative game about restoring Japan's GENKI energy. Players represent: ${regions.join(", ") || "all Japan"}. The first three stages last 20 seconds each: connect regions, intercept UFOs, and relay GENKI. The final 30-second boss stage charges one national GENKI gauge and launches a synchronized attack against a giant UFO. Return concise English UI copy.`,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "missions",
+          strict: true,
+          schema: {
+            type: "object",
+            properties: {
+              missions: {
+                type: "array",
+                minItems: 4,
+                maxItems: 4,
+                items: {
+                  type: "object",
+                  properties: {
+                    id: { type: "string" },
+                    icon: { type: "string" },
+                    title: { type: "string" },
+                    brief: { type: "string" },
+                    duration: { type: "number" },
+                  },
+                  required: ["id", "icon", "title", "brief", "duration"],
+                  additionalProperties: false,
+                },
+              },
+            },
+            required: ["missions"],
+            additionalProperties: false,
+          },
+        },
+      },
     });
     const missions = JSON.parse(response.output_text).missions;
-    return missions.map((mission, index) => ({ ...mission, duration: [15, 15, 20, 10][index] }));
+    return missions.map((mission, index) => ({
+      ...mission,
+      duration: [20, 20, 20, 30][index],
+    }));
   } catch (error) {
-    console.error("GPT-5.6 mission generation failed; using fallback:", error.message);
+    console.error(
+      "GPT-5.6 mission generation failed; using fallback:",
+      error.message,
+    );
     return defaultMissions;
   }
 }
 
-io.on("connection", socket => {
+io.on("connection", (socket) => {
   socket.emit("state", publicState());
 
   socket.on("join", ({ nickname, prefecture }, reply = () => {}) => {
     const player = {
-      id: randomUUID(), socketId: socket.id,
-      nickname: String(nickname || "Pilot").trim().slice(0, 16),
-      prefecture: String(prefecture || "Tokyo").trim().slice(0, 12),
-      interceptor: Math.floor(Math.random() * 6), score: 0
+      id: randomUUID(),
+      socketId: socket.id,
+      nickname: String(nickname || "Pilot")
+        .trim()
+        .slice(0, 16),
+      prefecture: String(prefecture || "Tokyo")
+        .trim()
+        .slice(0, 12),
+      interceptor: Math.floor(Math.random() * 6),
+      score: 0,
     };
     state.players.set(socket.id, player);
     reply({ ok: true, player });
@@ -80,54 +228,139 @@ io.on("connection", socket => {
   });
 
   socket.on("action", () => {
-    if (state.phase !== "playing") return;
+    if (!["playing", "boss"].includes(state.phase)) return;
     const player = state.players.get(socket.id);
     if (!player) return;
     const now = Date.now();
     if (now - (state.lastAction.get(socket.id) || 0) < 160) return;
     state.lastAction.set(socket.id, now);
-    player.score += 1; state.score += 1; state.missionScore += 1;
-    io.emit("pulse", { prefecture: player.prefecture, missionIndex: state.missionIndex });
+    player.score += 1;
+    state.score += 1;
+    if (state.phase === "boss") {
+      const target = Math.max(8, state.players.size * 6);
+      if (state.genki < target) state.genki += 1;
+      else state.launchVotes.add(socket.id);
+      if (
+        state.genki >= target &&
+        state.launchVotes.size >=
+          Math.max(1, Math.ceil(state.players.size * 0.5))
+      ) {
+        state.phase = "victory";
+        io.emit("bossDefeated");
+      }
+    } else state.missionScore += 1;
+    io.emit("pulse", {
+      prefecture: player.prefecture,
+      missionIndex: state.missionIndex,
+    });
   });
 
   socket.on("host:start", async () => {
     if (state.phase !== "lobby") return;
-    io.emit("generating");
-    state.missions = await generateMissions();
-    state.phase = "playing"; state.startedAt = Date.now(); state.endsAt = state.startedAt + 60_000;
-    state.score = 0; state.missionScore = 0; state.missionIndex = 0;
+    state.phase = "login";
+    state.startedAt = Date.now();
+    state.endsAt = state.startedAt + 30_000;
+    state.score = 0;
+    state.missionScore = 0;
+    state.missionIndex = 0;
+    state.genki = 0;
+    state.launchVotes.clear();
     for (const p of state.players.values()) p.score = 0;
+    broadcast();
+    state.missions = await generateMissions();
     broadcast();
   });
 
   socket.on("host:reset", () => {
-    Object.assign(state, { phase:"lobby", score:0, missionScore:0, missionIndex:0, missions:defaultMissions, startedAt:null, endsAt:null });
+    for (const [key, player] of state.players) {
+      if (player.debug) state.players.delete(key);
+    }
+    Object.assign(state, {
+      phase: "lobby",
+      score: 0,
+      missionScore: 0,
+      missionIndex: 0,
+      genki: 0,
+      missions: defaultMissions,
+      startedAt: null,
+      endsAt: null,
+    });
+    state.launchVotes.clear();
     for (const p of state.players.values()) p.score = 0;
     broadcast();
   });
-  socket.on("disconnect", () => { state.players.delete(socket.id); broadcast(); });
+  socket.on("host:debug60", () => {
+    for (const [key, player] of state.players) {
+      if (player.debug) state.players.delete(key);
+    }
+    const needed = Math.max(0, 60 - state.players.size);
+    for (let index = 0; index < needed; index++) {
+      const key = `debug-${index + 1}`;
+      state.players.set(key, {
+        id: randomUUID(),
+        socketId: key,
+        nickname: `PILOT-${String(index + 1).padStart(2, "0")}`,
+        prefecture: prefectureNames[index % prefectureNames.length],
+        interceptor: index % 6,
+        score: Math.floor(Math.random() * 12),
+        debug: true,
+      });
+    }
+    io.emit("debugLoaded", { players: state.players.size });
+    broadcast();
+  });
+  socket.on("disconnect", () => {
+    state.players.delete(socket.id);
+    broadcast();
+  });
 });
 
 setInterval(() => {
-  if (state.phase !== "playing") return;
-  const elapsed = Date.now() - state.startedAt;
-  const next = elapsed < 15_000 ? 0 : elapsed < 30_000 ? 1 : elapsed < 50_000 ? 2 : elapsed < 60_000 ? 3 : 4;
-  if (next === 4) {
+  const now = Date.now();
+  if (state.phase === "login" && now >= state.endsAt) {
+    state.phase = "playing";
+    state.startedAt = now;
+    state.endsAt = now + 60_000;
+    state.missionIndex = 0;
+    state.missionScore = 0;
+    io.emit("phaseChange", { phase: "playing" });
+  } else if (state.phase === "playing") {
+    const next = Math.min(2, Math.floor((now - state.startedAt) / 20_000));
+    if (next !== state.missionIndex) {
+      const completed = state.missions[state.missionIndex];
+      state.missionIndex = next;
+      state.missionScore = 0;
+      io.emit("missionComplete", { title: completed.title, victory: false });
+    }
+    if (now >= state.endsAt) {
+      state.phase = "boss";
+      state.startedAt = now;
+      state.endsAt = now + 30_000;
+      state.missionIndex = 3;
+      state.genki = 0;
+      state.launchVotes.clear();
+      io.emit("phaseChange", { phase: "boss" });
+    }
+  } else if (state.phase === "boss" && now >= state.endsAt) {
     state.phase = "victory";
-    io.emit("missionComplete", { title: state.missions[3].title, victory: true });
-    broadcast(); return;
+    io.emit("bossDefeated");
   }
-  if (next !== state.missionIndex) {
-    const completed = state.missions[state.missionIndex];
-    state.missionIndex = next; state.missionScore = 0;
-    io.emit("missionComplete", { title: completed.title, victory: false });
-  }
-  broadcast();
+  if (["login", "playing", "boss"].includes(state.phase)) broadcast();
 }, 250);
 
 app.get("/api/qr", async (req, res) => {
   const url = `${req.protocol}://${req.get("host")}/`;
-  res.type("png").send(await QRCode.toBuffer(url, { width:640, margin:1, color:{ dark:"#071120", light:"#ffffff" } }));
+  res.type("png").send(
+    await QRCode.toBuffer(url, {
+      width: 640,
+      margin: 1,
+      color: { dark: "#071120", light: "#ffffff" },
+    }),
+  );
 });
 
-server.listen(port, () => console.log(`Save Japan ready at http://localhost:${port} — display: /display`));
+server.listen(port, () =>
+  console.log(
+    `Save Japan ready at http://localhost:${port} — display: /display`,
+  ),
+);

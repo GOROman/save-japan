@@ -1,1 +1,117 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Save Japan! — Command Screen</title><link rel="stylesheet" href="/styles.css"><link rel="stylesheet" href="/display.css"></head><body><main class="display"><header><div class="brand"><span class="brand-mark">日</span> National Defense Command</div><div class="live"><i></i> LIVE · <b id="playerCount">0</b> PILOTS · <b id="regionCount">0</b>/47 REGIONS</div></header><section id="lobby" class="stage lobby"><div class="pitch"><div class="eyebrow">UFO Alert · Japan Needs You</div><h1>SAVE <span>JAPAN!</span></h1><p>Scan. Join your hometown. Defend together.</p><div id="recent" class="recent"></div></div><div class="qr-card"><img src="/api/qr" alt="Join QR code"><strong>SCAN TO JOIN</strong><small id="joinUrl"></small></div></section><section id="battle" class="stage battle hidden"><div class="space"><div class="ufo">🛸</div><div id="ships" class="ships"></div><div class="japan">🗾</div></div><aside class="mission-panel"><div id="missionNumber" class="eyebrow"></div><div id="missionIcon" class="mission-icon"></div><h2 id="missionTitle"></h2><p id="missionBrief"></p><div class="mega-progress"><i id="progressBar"></i></div><div class="progress-label"><b id="score">0</b><span id="target">/ 0 ENERGY</span></div><div id="regions" class="region-list"></div></aside></section><section id="victory" class="stage victory-screen hidden"><div class="sun"></div><div class="victory-content"><div class="flag">🇯🇵</div><div class="eyebrow">Mission Complete</div><h1>JAPAN<br>IS SAFE.</h1><p>When every region acts together, nothing is impossible.</p><div class="stats"><b id="finalPlayers">0</b> PILOTS · <b id="finalRegions">0</b> REGIONS · ONE JAPAN</div></div></section><footer><span>Built with Codex + GPT-5.6</span><button id="start">GENERATE MISSIONS & START</button><button id="reset" class="secondary">RESET</button></footer></main><script src="/socket.io/socket.io.js"></script><script src="/display.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Save Japan! — Command Screen</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/display.css" />
+  </head>
+  <body>
+    <main class="display">
+      <header>
+        <div class="brand">
+          <span class="brand-mark">日</span> National Defense Command
+        </div>
+        <div class="live">
+          <i></i> LIVE · <b id="playerCount">0</b> PILOTS ·
+          <b id="regionCount">0</b>/47 REGIONS
+        </div>
+      </header>
+      <section id="lobby" class="stage lobby">
+        <div class="pitch">
+          <div id="pitchDeck" class="pitch-deck">
+            <article class="pitch-slide active">
+              <img
+                class="display-key-art"
+                src="/assets/save-japan-key-art.png"
+                alt="Save Japan key art"
+              />
+            </article>
+            <article class="pitch-slide pitch-copy">
+              <div class="slide-kicker">THE PROBLEM</div>
+              <h2>今の日本に<br />足りないのは、<em>「元気」</em></h2>
+              <p>個人の元気を、地域を越えた大きな力へ。</p>
+            </article>
+            <article class="pitch-slide pitch-map-slide">
+              <div class="slide-kicker">THE SOLUTION</div>
+              <h2><span>47都道府県が</span><span>30秒で集結。</span></h2>
+              <div id="mapSlideTarget"></div>
+            </article>
+            <article class="pitch-slide pitch-copy">
+              <div class="slide-kicker">THE EXPERIENCE</div>
+              <h2>120秒で、日本を救え。</h2>
+              <div class="phase-row">
+                <b>30</b><span>JOIN<br />QRで参戦</span><i>→</i><b>60</b
+                ><span>PLAY<br />元気を集める</span><i>→</i><b>30</b
+                ><span>BOSS<br />全員で発射</span>
+              </div>
+            </article>
+            <article class="pitch-slide pitch-copy">
+              <div class="slide-kicker">BUILT WITH OPENAI</div>
+              <h2>AIが、会場全体を<br /><em>ひとつのチーム</em>にする。</h2>
+              <p>GPT-5.6 creates the mission. Codex built the experience.</p>
+            </article>
+          </div>
+          <div class="slide-nav">
+            <span id="slideCount">01 / 05</span><span>← → PRESENTATION</span>
+          </div>
+          <div id="recent" class="recent"></div>
+        </div>
+        <div class="qr-card">
+          <img src="/api/qr" alt="Join QR code" /><strong>SCAN TO JOIN</strong
+          ><small id="joinUrl"></small>
+        </div>
+      </section>
+      <section id="battle" class="stage battle hidden">
+        <div class="space">
+          <img
+            class="ufo"
+            src="/assets/ufo-closeup-red.png"
+            alt="Invading UFO"
+          />
+          <img
+            id="japanMap"
+            class="japan-map"
+            src="/assets/japan-prefecture-lines.png"
+            alt="Japan map with all 47 prefectures"
+          />
+          <div id="beamLayer" class="beam-layer"></div>
+          <div id="ships" class="ships"></div>
+        </div>
+        <aside class="mission-panel">
+          <div id="missionNumber" class="eyebrow"></div>
+          <div id="missionIcon" class="mission-icon"></div>
+          <h2 id="missionTitle"></h2>
+          <p id="missionBrief"></p>
+          <div class="mega-progress"><i id="progressBar"></i></div>
+          <div class="progress-label">
+            <b id="score">0</b><span id="target">/ 0 ENERGY</span>
+          </div>
+          <div id="regions" class="region-list"></div>
+        </aside>
+      </section>
+      <section id="victory" class="stage victory-screen hidden">
+        <div class="sun"></div>
+        <div class="victory-content">
+          <div class="flag">🇯🇵</div>
+          <div class="eyebrow">Mission Complete</div>
+          <h1>JAPAN<br />IS SAFE.</h1>
+          <p>When every region acts together, nothing is impossible.</p>
+          <div class="stats">
+            <b id="finalPlayers">0</b> PILOTS ·
+            <b id="finalRegions">0</b> REGIONS · ONE JAPAN
+          </div>
+        </div>
+      </section>
+      <footer>
+        <span>Built with Codex + GPT-5.6</span
+        ><button id="start">GENERATE MISSIONS & START</button
+        ><button id="debug60" class="secondary">DEBUG: 60 PILOTS</button
+        ><button id="reset" class="secondary">RESET</button>
+      </footer>
+    </main>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/display.js"></script>
+  </body>
+</html>

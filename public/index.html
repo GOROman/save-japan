@@ -1,1 +1,78 @@
-<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"><meta name="theme-color" content="#050a12"><title>Save Japan!</title><link rel="stylesheet" href="/styles.css"></head><body><main class="shell"><div class="brand"><span class="brand-mark">日</span> National Defense Network</div><section id="join"><div class="hero"><div class="eyebrow">UFO Alert · Level 5</div><h1>SAVE<br><span>JAPAN!</span></h1><p>Your hometown needs you. Join pilots from all 47 prefectures and defend Japan—together.</p></div><form id="joinForm" class="card"><label class="field"><span>Call sign</span><input id="nickname" maxlength="16" required placeholder="Your nickname" autocomplete="nickname"></label><label class="field"><span>Your hometown</span><select id="prefecture" required></select></label><button class="primary">Launch interceptor →</button><div class="fine">No account. No download. Just teamwork.</div></form></section><section id="game" class="hidden pilot"><div class="interceptor" id="ship">🚀</div><div class="pilot-name" id="pilotName"></div><div class="pilot-region" id="pilotRegion"></div><div class="card mission-card"><div class="mission-number" id="missionNumber">STAND BY</div><h2 id="missionTitle">Waiting for launch</h2><p id="missionBrief">The defense commander will start soon.</p><div class="progress"><i id="progressBar"></i></div></div><button id="fire" class="fire hidden">DEFEND!</button><div class="score">Your contribution <b id="myScore">0</b></div></section><section id="victory" class="hidden victory"><div class="flag">🇯🇵</div><h2>JAPAN<br>IS SAFE.</h2><p>47 prefectures. One team.<br>Take this energy into the real world.</p></section></main><script src="/socket.io/socket.io.js"></script><script src="/app.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1"
+    />
+    <meta name="theme-color" content="#050a12" />
+    <title>Save Japan!</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <div class="brand">
+        <span class="brand-mark">日</span> National Defense Network
+      </div>
+      <section id="join">
+        <div class="hero">
+          <img
+            class="mobile-key-art"
+            src="/assets/save-japan-key-art.png"
+            alt="UFO invasion over Japan"
+          />
+          <div class="eyebrow">UFO Alert · Level 5</div>
+          <h1>SAVE<br /><span>JAPAN!</span></h1>
+          <p>
+            Your hometown needs you. Join pilots from all 47 prefectures and
+            defend Japan—together.
+          </p>
+        </div>
+        <form id="joinForm" class="card">
+          <label class="field"
+            ><span>Call sign</span
+            ><input
+              id="nickname"
+              maxlength="16"
+              required
+              placeholder="Your nickname"
+              autocomplete="nickname" /></label
+          ><label class="field"
+            ><span>Your hometown</span
+            ><select id="prefecture" required></select></label
+          ><button class="primary">Launch interceptor →</button>
+          <div class="fine">No account. No download. Just teamwork.</div>
+        </form>
+      </section>
+      <section id="game" class="hidden pilot">
+        <div class="interceptor" id="ship">
+          <img src="/assets/player-ship-blue.png" alt="Blue interceptor" />
+        </div>
+        <div class="pilot-name" id="pilotName"></div>
+        <div class="pilot-region" id="pilotRegion"></div>
+        <div class="card mission-card">
+          <div class="mission-number" id="missionNumber">STAND BY</div>
+          <h2 id="missionTitle">Waiting for launch</h2>
+          <p id="missionBrief">The defense commander will start soon.</p>
+          <div class="progress"><i id="progressBar"></i></div>
+        </div>
+        <button id="fire" class="fire hidden">DEFEND!</button>
+        <div class="score">Your contribution <b id="myScore">0</b></div>
+      </section>
+      <section id="victory" class="hidden victory">
+        <img
+          class="victory-art"
+          src="/assets/save-japan-key-art.png"
+          alt="Japan protected"
+        />
+        <h2>JAPAN<br />IS SAFE.</h2>
+        <p>
+          47 prefectures. One team.<br />Take this energy into the real world.
+        </p>
+      </section>
+    </main>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
