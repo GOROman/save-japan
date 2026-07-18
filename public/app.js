@@ -231,7 +231,7 @@ $("fire").addEventListener("pointerdown", () => {
   if (audioReady)
     state?.phase === "boss"
       ? SaveJapanAudio.hissatsu()
-      : SaveJapanAudio.laser();
+      : SaveJapanAudio.shoot();
   if (navigator.vibrate)
     navigator.vibrate(state?.phase === "boss" ? [24, 18, 42] : 28);
 });

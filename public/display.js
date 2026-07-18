@@ -148,7 +148,7 @@ function debugHomingAttack() {
   const enemy = enemies[Math.floor(Math.random() * enemies.length)];
   pulseRegion(prefecture);
   firePrefectureBeam(prefecture, enemy?.dataset.enemyId || null);
-  if (audioReady) SaveJapanAudio.laser();
+  if (audioReady) SaveJapanAudio.shoot();
 }
 const cutin = document.createElement("div");
 cutin.className = "join-cutin hidden";
@@ -216,7 +216,10 @@ socket.on("pulse", ({ prefecture }) => {
       { duration: 220 },
     );
   pulseRegion(prefecture);
-  if (state?.phase === "boss") firePrefectureBeam(prefecture);
+  if (state?.phase === "boss") {
+    firePrefectureBeam(prefecture);
+    if (audioReady) SaveJapanAudio.explosion();
+  }
 });
 socket.on("enemyHit", ({ id, prefecture, nickname }) => {
   firePrefectureBeam(prefecture, id);
@@ -225,6 +228,7 @@ socket.on("enemyHit", ({ id, prefecture, nickname }) => {
 socket.on("enemyDestroyed", ({ id, nickname, prefecture }) => {
   const enemy = document.querySelector(`[data-enemy-id="${id}"]`);
   if (!enemy) return;
+  if (audioReady) SaveJapanAudio.explosion();
   const space = document.querySelector(".space");
   const enemyRect = enemy.getBoundingClientRect();
   const spaceRect = space.getBoundingClientRect();
@@ -282,6 +286,7 @@ function showBossDefeatSequence() {
     image.style.setProperty("--blast-size", `${90 + Math.random() * 150}px`);
     image.style.setProperty("--blast-rotate", `${-25 + Math.random() * 50}deg`);
     finale.append(image);
+    if (audioReady && blast % 3 === 0) SaveJapanAudio.explosion();
     setTimeout(() => image.remove(), 1100);
     blast += 1;
     if (blast >= 30) clearInterval(explosions);

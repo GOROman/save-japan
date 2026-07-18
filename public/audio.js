@@ -4,15 +4,51 @@
   let musicTimer;
   let musicRunning = false;
   const midiCache = new Map();
+  const sampleCache = new Map();
+  let lastExplosionAt = 0;
+  const sampleUrls = {
+    shoot: "/assets/audio/shoot.mp3",
+    explosion1: "/assets/audio/explosion-1.mp3",
+    explosion2: "/assets/audio/explosion-2.mp3",
+    explosion3: "/assets/audio/explosion-3.mp3",
+  };
 
   function init() {
     if (!context) {
       context = new (window.AudioContext || window.webkitAudioContext)();
       master = context.createGain();
-      master.gain.value = 0.2;
+      master.gain.value = 0.32;
       master.connect(context.destination);
+      Object.entries(sampleUrls).forEach(([name, url]) =>
+        loadSample(name, url),
+      );
     }
     if (context.state === "suspended") context.resume();
+  }
+
+  async function loadSample(name, url) {
+    if (sampleCache.has(name)) return sampleCache.get(name);
+    const loading = fetch(url)
+      .then((response) => response.arrayBuffer())
+      .then((buffer) => context.decodeAudioData(buffer));
+    sampleCache.set(name, loading);
+    return loading;
+  }
+
+  async function playSample(name, volume = 0.5) {
+    init();
+    try {
+      const buffer = await loadSample(name, sampleUrls[name]);
+      const source = context.createBufferSource();
+      const gain = context.createGain();
+      source.buffer = buffer;
+      gain.gain.value = volume;
+      source.connect(gain);
+      gain.connect(master);
+      source.start();
+    } catch (error) {
+      console.warn("Sample playback failed", name, error);
+    }
   }
 
   const frequency = (note) => 440 * 2 ** ((note - 69) / 12);
@@ -140,7 +176,7 @@
     musicRunning = true;
     const loop = async () => {
       if (!musicRunning) return;
-      const duration = await playMidi("save-japan-bgm-60s", 0.045);
+      const duration = await playMidi("save-japan-bgm-60s", 0.07);
       musicTimer = setTimeout(loop, duration * 1000);
     };
     loop();
@@ -155,6 +191,13 @@
     startMusic,
     stopMusic,
     laser: () => playMidi("sfx-laser", 0.12),
+    shoot: () => playSample("shoot", 0.7),
+    explosion: () => {
+      const now = performance.now();
+      if (now - lastExplosionAt < 180) return;
+      lastExplosionAt = now;
+      return playSample(`explosion${1 + Math.floor(Math.random() * 3)}`, 0.8);
+    },
     launch: () => playMidi("sfx-launch", 0.13),
     alert: () => playMidi("sfx-mission-alert", 0.14),
     hissatsu: () => playMidi("sfx-hissatsu", 0.16),
