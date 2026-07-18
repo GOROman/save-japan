@@ -10,8 +10,8 @@
   <img src="assets/save-japan-demo.gif" alt="Save Japan! live multiplayer demo" width="560">
 </p>
 
-- **Player:** [save-japan.yoshihito-kondoh.workers.dev](https://save-japan.yoshihito-kondoh.workers.dev/)
-- **Projector:** [save-japan.yoshihito-kondoh.workers.dev/display](https://save-japan.yoshihito-kondoh.workers.dev/display)
+- **Player:** [save-japan.goroman.workers.dev](https://save-japan.goroman.workers.dev/)
+- **Projector:** [save-japan.goroman.workers.dev/display](https://save-japan.goroman.workers.dev/display)
 
 **Reignite Japan's spirit—one hometown at a time.**
 
