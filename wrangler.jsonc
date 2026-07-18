@@ -1,0 +1,39 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "save-japan",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-07-18",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "containers": [
+    {
+      "class_name": "SaveJapanContainer",
+      "image": "./Dockerfile",
+      "max_instances": 1,
+      "instance_type": "lite",
+      "constraints": {
+        "regions": ["APAC"]
+      },
+      "ssh": {
+        "enabled": false
+      }
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "SAVE_JAPAN",
+        "class_name": "SaveJapanContainer"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["SaveJapanContainer"]
+    }
+  ],
+  "observability": {
+    "enabled": true
+  }
+}

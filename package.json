@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch server.js",
-    "start": "node server.js"
+    "start": "node server.js",
+    "deploy:cloudflare": "wrangler deploy --containers-rollout=immediate"
   },
   "dependencies": {
+    "@cloudflare/containers": "^0.3.7",
     "express": "^5.1.0",
     "openai": "^5.10.2",
     "qrcode": "^1.5.4",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "wrangler": "^4.112.0"
   }
 }

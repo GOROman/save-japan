@@ -10,6 +10,9 @@
   <img src="assets/save-japan-demo.gif" alt="Save Japan! live multiplayer demo" width="560">
 </p>
 
+- **Player:** [save-japan.yoshihito-kondoh.workers.dev](https://save-japan.yoshihito-kondoh.workers.dev/)
+- **Projector:** [save-japan.yoshihito-kondoh.workers.dev/display](https://save-japan.yoshihito-kondoh.workers.dev/display)
+
 **Reignite Japan's spirit—one hometown at a time.**
 
 Japan once astonished the world with its energy, imagination, and shared belief in a brighter future. Today, many people feel that confidence and connection fading. **Save Japan!** asks a hopeful question: what if we could awaken that spirit again—not by returning to the past, but by bringing its courage, creativity, and solidarity into the future?
@@ -107,6 +110,21 @@ Open `http://localhost:3000/display` on the shared screen and `http://localhost:
 
 The app remains fully playable with a safe set of fallback missions if the API is temporarily unavailable.
 
+## Deploy to Cloudflare
+
+The production deployment uses one Cloudflare Worker and one Cloudflare Container. Keeping `max_instances` at `1` preserves the single worldwide Socket.IO session and authoritative in-memory game state.
+
+Cloudflare Workers Paid with Containers enabled and a local Docker daemon capable of building `linux/amd64` images are required.
+
+```bash
+npm install
+npx wrangler login
+npx wrangler secret put OPENAI_API_KEY
+npm run deploy:cloudflare
+```
+
+The Worker forwards HTTP and WebSocket traffic to the Node.js container. The container is placed in APAC, sleeps after 30 minutes without activity, and automatically wakes on the next request.
+
 ## Built with Codex and GPT-5.6
 
 - **Codex:** We used one primary Codex thread to turn the concept into the complete realtime product: product scoping, architecture, mobile UI, command-screen design, Socket.IO game state, safety fallback, testing, and documentation. Codex helped us reach an end-to-end multiplayer prototype within the first implementation sprint while we retained the core product and design decisions.
@@ -125,12 +143,14 @@ Player phones ── Socket.IO actions ──▶ Authoritative Node.js game serv
 Projector command screen ◀──────── synchronized public game state
 ```
 
+In production, a Cloudflare Worker and singleton Durable Object route every request and WebSocket connection to the same Cloudflare Container.
+
 - **Player client:** mobile-first HTML, CSS, and JavaScript for registration, missions, attacks, haptics, and local sound effects.
 - **Command screen:** a dedicated `/display` route for QR onboarding, the live Japan map, player arrivals, enemy attacks, mission state, and results.
 - **Authoritative server:** Node.js, Express, and Socket.IO own the phase clock, player registry, scores, enemies, boss energy, and launch-vote threshold.
 - **AI boundary:** the OpenAI Responses API produces exactly four mission objects through a strict JSON schema. Generated durations are replaced with server-controlled values before use.
 - **Graceful fallback:** missing credentials, API errors, or invalid generation never block play; the server uses a tested fixed mission sequence.
-- **Deployment:** `render.yaml` defines a Node 22 web service, deterministic `npm ci` build, WebSocket-capable runtime, and `/health` check.
+- **Deployment:** `wrangler.jsonc`, `cloudflare/worker.js`, and `Dockerfile` define a singleton Node 22 Cloudflare Container, APAC placement, WebSocket forwarding, deterministic `npm ci` build, and `/health` check. `render.yaml` remains as an alternative WebSocket-capable deployment target.
 - **Data model:** live state is intentionally ephemeral. The prototype stores no accounts, passwords, GPS coordinates, or database records.
 
 ## Reliability and safety
@@ -164,7 +184,8 @@ Keeping these limitations explicit separates the working event MVP from its prod
 - `public/display.js` — synchronized projector visualization and event rendering.
 - `public/audio.js` and `assets/audio/` — lightweight synthesized/MIDI and sampled battle audio.
 - `assets/sprites/` — transparent interceptor, missile, UFO, and explosion assets.
-- `render.yaml` — reproducible hosted deployment configuration.
+- `cloudflare/worker.js`, `wrangler.jsonc`, and `Dockerfile` — production Worker, singleton Container, and reproducible image configuration.
+- `render.yaml` — alternative hosted deployment configuration.
 - `assets/save-japan-demo.gif` — recorded end-to-end multiplayer demonstration.
 
 ## Team

@@ -10,6 +10,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const port = process.env.PORT || 3000;
 
+app.set("trust proxy", true);
 app.use(express.static("public"));
 app.use("/assets", express.static("assets"));
 app.get("/display", (_req, res) =>
@@ -685,7 +686,11 @@ function regionFor(prefecture) {
 }
 
 app.get("/api/qr", async (req, res) => {
-  const url = `${req.protocol}://${req.get("host")}/`;
+  const forwardedProtocol = req.get("x-forwarded-proto")?.split(",")[0];
+  const forwardedHost = req.get("x-forwarded-host")?.split(",")[0];
+  const protocol = forwardedProtocol || req.protocol;
+  const host = forwardedHost || req.get("host");
+  const url = `${protocol}://${host}/`;
   res.type("png").send(
     await QRCode.toBuffer(url, {
       width: 640,
