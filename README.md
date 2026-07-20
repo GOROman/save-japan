@@ -17,7 +17,7 @@
 
 Japan once astonished the world with its energy, imagination, and shared belief in a brighter future. Today, many people feel that confidence and connection fading. **Save Japan!** asks a hopeful question: what if we could awaken that spirit again—not by returning to the past, but by bringing its courage, creativity, and solidarity into the future?
 
-Save Japan! turns a room full of strangers into one nationwide defense team for an intense two-minute live experience. Players scan a QR code, choose a nickname and their home prefecture, receive a unique interceptor, and complete three regional missions plus a synchronized final boss battle. A shared command screen visualizes every participating region and the country's combined progress in real time.
+Save Japan! turns people across the country into one nationwide defense team for an intense two-minute live experience. **One worldwide game starts every day at 21:00 Japan Standard Time.** Until launch, players scan the QR code, choose a nickname and home prefecture, and wait together as the synchronized countdown approaches zero. Each daily battle uses a different fictional crisis scenario, three regional missions, and a synchronized final boss fight.
 
 ## Inspiration
 
@@ -37,7 +37,7 @@ Save Japan! is a cooperative mobile game that brings a live audience together to
 
 Players scan a QR code, enter a nickname, and select their hometown prefecture. No GPS, exact address, account, or app installation is required. Each player receives an interceptor on their phone, while the shared command screen immediately shows new arrivals, participating regions, regional activity, and nationwide progress.
 
-Players complete a four-stage mission sequence created with GPT-5.6. The sequence moves from regional pride to cross-region support, a coordinated attack, and a nationwide final defense. Every action from every phone contributes to the same shared objective.
+At 20:59 JST, GPT-5.6 prepares a new Japan-in-crisis scenario and a four-stage mission sequence in Japanese, English, and Simplified Chinese. At exactly 21:00 JST, the single worldwide game starts automatically. The sequence moves from regional action to cross-region support, a coordinated attack, and a nationwide final defense. Every action from every phone contributes to the same shared objective.
 
 During the climax, all players receive the same final command and press **DEFEND!** together. Energy from the participating prefectures combines to save Japan. The goal is not for one prefecture to defeat the others: the final outcome depends on nationwide cooperation.
 
@@ -55,7 +55,7 @@ We designed Save Japan! as one synchronized experience across a projector and th
 
 The mobile browser handles instant registration, hometown selection, mission instructions, personal contribution, haptic feedback, and the final command. The shared screen handles QR onboarding, new-player arrivals, regional participation, the UFO battle, mission progress, and the final result. Socket.IO synchronizes every action in real time without requiring accounts or a database.
 
-GPT-5.6 uses structured output to create a reliable four-mission sequence informed by the prefectures in the room. A validated fallback sequence keeps the live game playable if generation is unavailable. Codex supported product scoping, architecture, implementation, debugging, visual design, testing, and documentation in one primary development thread.
+GPT-5.6 uses structured output to create a reliable daily crisis scenario and four-mission sequence. A date-seeded library of fictional crises keeps the daily scenario changing and the live game playable if generation is unavailable. Codex supported product scoping, architecture, implementation, debugging, visual design, testing, and documentation in one primary development thread.
 
 ## Challenges we ran into
 
@@ -91,15 +91,15 @@ The UFO invasion is the beginning. The long-term goal is to turn shared exciteme
 
 ## Two-minute live experience
 
-1. Open `/display` on the projector.
+1. Open `/display`; the command screen and phones show the countdown to 21:00 JST.
 2. Players scan the QR code and join from any mobile browser—no installation or account.
-3. The host starts a 30-second mobilization countdown while GPT-5.6 prepares the mission copy.
-4. Players complete three 20-second cooperative missions as attacks and regional energy appear on the shared map.
-5. A 30-second boss phase combines nationwide GENKI energy and synchronized launch votes into the final attack.
+3. At 20:59 JST, GPT-5.6 prepares that day's fictional crisis and multilingual mission copy.
+4. At 21:00 JST, the one worldwide game starts automatically.
+5. Players complete three 20-second cooperative missions, followed by a 30-second boss phase that combines nationwide GENKI into the final attack.
 
 ## Run locally
 
-Requires Node.js 20+ and an OpenAI API key with access to GPT-5.6.
+Requires Node.js 20+. An OpenAI API key with access to GPT-5.6 enables generated daily scenarios; without it, the date-seeded fallback is used.
 
 ```bash
 npm install
@@ -108,11 +108,13 @@ OPENAI_API_KEY=your_key npm start
 
 Open `http://localhost:3000/display` on the shared screen and `http://localhost:3000` on phones. For a venue demo, expose port 3000 through a secure HTTPS tunnel or deploy the Node server to a service that supports WebSockets.
 
+Local development follows the same 21:00 JST schedule. To test immediately, enter the Konami code on `/display` to reveal the debug controls, then use **START GAME**.
+
 The app remains fully playable with a safe set of fallback missions if the API is temporarily unavailable.
 
 ## Deploy to Cloudflare
 
-The production deployment uses one Cloudflare Worker and one Cloudflare Container. Keeping `max_instances` at `1` preserves the single worldwide Socket.IO session and authoritative in-memory game state.
+The production deployment uses one Cloudflare Worker and one named Cloudflare Container session. All HTTP and WebSocket traffic is pinned to that named singleton, preserving one worldwide Socket.IO game state. The application cap is `2` only so a replacement container revision can start while an old inactive revision drains during deployment.
 
 Cloudflare Workers Paid with Containers enabled and a local Docker daemon capable of building `linux/amd64` images are required.
 
@@ -123,12 +125,12 @@ npx wrangler secret put OPENAI_API_KEY
 npm run deploy:cloudflare
 ```
 
-The Worker forwards HTTP and WebSocket traffic to the Node.js container. The container is placed in APAC, sleeps after 30 minutes without activity, and automatically wakes on the next request.
+The Worker forwards HTTP and WebSocket traffic to the Node.js container. Cloudflare Cron wakes the singleton at 20:59 JST to prepare the daily scenario and again at 21:00 JST to start the game. A Durable Object record prevents a second launch on the same Japanese calendar date, even if the container restarts.
 
 ## Built with Codex and GPT-5.6
 
 - **Codex:** We used one primary Codex thread to turn the concept into the complete realtime product: product scoping, architecture, mobile UI, command-screen design, Socket.IO game state, safety fallback, testing, and documentation. Codex helped us reach an end-to-end multiplayer prototype within the first implementation sprint while we retained the core product and design decisions.
-- **GPT-5.6:** GPT-5.6 is part of the live product, not just the development process. At the start of each game it receives the actual set of participating prefectures and creates a structured four-stage cooperative mission sequence: regional pride, cross-region support, coordinated attack, and final synchronized defense. Strict JSON schema output keeps generation reliable for a live audience.
+- **GPT-5.6:** GPT-5.6 is part of the live product, not just the development process. Before the daily 21:00 JST launch, it creates a unique fictional crisis, boss identity, and structured multilingual four-stage mission sequence. Strict JSON schema output keeps generation reliable for a live audience.
 
 ## Technical architecture
 
@@ -137,8 +139,8 @@ Player phones ── Socket.IO actions ──▶ Authoritative Node.js game serv
       ▲                                      │
       │                                      ├── phase timing and scoring
       │ realtime state                       ├── action throttling
-      │                                      ├── GPT-5.6 mission generation
-      │                                      └── deterministic fallback missions
+      │                                      ├── GPT-5.6 daily scenario generation
+      │                                      └── date-seeded fallback scenarios
       │
 Projector command screen ◀──────── synchronized public game state
 ```
@@ -148,10 +150,10 @@ In production, a Cloudflare Worker and singleton Durable Object route every requ
 - **Player client:** mobile-first HTML, CSS, and JavaScript for registration, missions, attacks, haptics, and local sound effects.
 - **Command screen:** a dedicated `/display` route for QR onboarding, the live Japan map, player arrivals, enemy attacks, mission state, and results.
 - **Authoritative server:** Node.js, Express, and Socket.IO own the phase clock, player registry, scores, enemies, boss energy, and launch-vote threshold.
-- **AI boundary:** the OpenAI Responses API produces exactly four mission objects through a strict JSON schema. Generated durations are replaced with server-controlled values before use.
-- **Graceful fallback:** missing credentials, API errors, or invalid generation never block play; the server uses a tested fixed mission sequence.
-- **Deployment:** `wrangler.jsonc`, `cloudflare/worker.js`, and `Dockerfile` define a singleton Node 22 Cloudflare Container, APAC placement, WebSocket forwarding, deterministic `npm ci` build, and `/health` check. `render.yaml` remains as an alternative WebSocket-capable deployment target.
-- **Data model:** live state is intentionally ephemeral. The prototype stores no accounts, passwords, GPS coordinates, or database records.
+- **AI boundary:** the OpenAI Responses API produces one scenario and exactly four multilingual mission objects through a strict JSON schema. Generated durations are replaced with server-controlled values before use.
+- **Graceful fallback:** missing credentials, API errors, or invalid generation never block play; a date-seeded scenario library changes the crisis from day to day.
+- **Deployment:** `wrangler.jsonc`, `cloudflare/worker.js`, and `Dockerfile` define a singleton Node 22 Cloudflare Container, APAC placement, WebSocket forwarding, 20:59/21:00 JST Cron triggers, deterministic `npm ci` build, and `/health` check. `render.yaml` remains as an alternative WebSocket-capable deployment target.
+- **Data model:** live battle state is intentionally ephemeral. The Durable Object stores only the most recent Japanese game date for one-launch-per-day enforcement; the app stores no accounts, passwords, GPS coordinates, or exact addresses.
 
 ## Reliability and safety
 
@@ -159,17 +161,19 @@ In production, a Cloudflare Worker and singleton Durable Object route every requ
 - Player actions are throttled per socket to limit accidental double taps and basic action spam.
 - Nicknames and prefecture values are normalized and length-bounded before entering shared state.
 - Game timing is based on server timestamps and broadcast to every connected screen.
-- AI generation occurs once before play; it is not placed in the latency-sensitive action loop.
+- The normal start and reset controls are disabled; the protected debug controls require the Konami-code unlock sequence.
+- Cloudflare Cron starts the one worldwide game at 21:00 JST, and persistent daily-date storage rejects duplicate launches.
+- AI generation occurs at 20:59 JST; it is not placed in the latency-sensitive action loop.
 - Strict structured output and deterministic fallback content keep the live event playable when AI is unavailable.
 - The deployment exposes a health endpoint and uses lockfile-based dependency installation.
 
 ## Prototype trust boundary and known limitations
 
-This hackathon build is designed for a **hosted, supervised venue session**. Host and debug Socket.IO events currently assume that the projector operator and venue network are trusted; they are not yet protected by host authentication. Realtime state is held in one Node.js process and resets when that process restarts.
+This hackathon build now runs as a **single scheduled worldwide session**. Realtime battle state is held in one Node.js process and can reset if that process fails during the two-minute game; the daily launch record itself survives container restarts.
 
 Before operating the platform as an unsupervised public service, we would add:
 
-- a host token and role checks for start, reset, boss, fire, and debug events;
+- authenticated operator roles beyond the current hidden debug unlock;
 - production removal or compile-time disabling of the 60-player debug simulator;
 - shared persistent state for multi-instance deployment and restart recovery;
 - session isolation, reconnect recovery, abuse monitoring, and stricter rate limits;

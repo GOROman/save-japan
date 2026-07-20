@@ -14,6 +14,7 @@ const displayCopies = {
     presentation: "← → プレゼンテーション", qr: "スキャンして参戦", boss: "⚠ 巨大UFO · ラストボス",
     victoryKicker: "MISSION COMPLETE", victoryTitle: "日本は<br />救われた・・", victoryCopy: "47都道府県の元気が、日本をひとつにした。", top: "トップ5 パイロット",
     start: "ゲーム開始", built: "Codex + GPT-5.6で開発", finalPhase: "最終フェーズ · ボス戦", mission: "ミッション", of: "/ 3", energy: "エネルギー", genki: "元気",
+    dailyRule: "1日1回 · 毎日21:00 JST", dailyCountdown: "次回の全国防衛作戦まで", dailyLive: "本日の全国防衛作戦 進行中", scenarioLoading: "本日の危機を解析中…",
     missions: [["シールドを展開せよ", "故郷の防衛グリッドをチャージ"], ["UFOを迎撃せよ", "日本へ到達する前に協力して攻撃"], ["全国元気リレー", "地域を越えて元気を送ろう"], ["日本を救え！", "全国の元気で一斉攻撃"]],
   },
   en: {
@@ -24,7 +25,8 @@ const displayCopies = {
     openaiKicker: "BUILT WITH OPENAI", openaiTitle: "<span>AI turns an entire venue</span><span>into <em>one team.</em></span>", openaiCopy: "GPT-5.6 creates the mission. Codex built the experience.",
     presentation: "← → PRESENTATION", qr: "SCAN TO JOIN", boss: "⚠ GIANT UFO · FINAL BOSS",
     victoryKicker: "MISSION COMPLETE", victoryTitle: "JAPAN<br />IS SAVED.", victoryCopy: "The energy of 47 prefectures united Japan.", top: "TOP 5 PILOTS",
-    start: "START GAME", built: "Built with Codex + GPT-5.6", finalPhase: "FINAL PHASE · BOSS BATTLE", mission: "MISSION", of: "OF 3", energy: "ENERGY", genki: "GENKI", missions: null,
+    start: "START GAME", built: "Built with Codex + GPT-5.6", finalPhase: "FINAL PHASE · BOSS BATTLE", mission: "MISSION", of: "OF 3", energy: "ENERGY", genki: "GENKI",
+    dailyRule: "ONCE A DAY · 21:00 JST", dailyCountdown: "NEXT NATIONAL DEFENSE IN", dailyLive: "TODAY'S DEFENSE IS LIVE", scenarioLoading: "ANALYZING TODAY'S CRISIS…", missions: null,
   },
   zh: {
     brand: "全国防卫指挥部", live: "直播", pilots: "飞行员", regions: "地区",
@@ -35,6 +37,7 @@ const displayCopies = {
     presentation: "← → 演示", qr: "扫码参战", boss: "⚠ 巨型UFO · 最终首领",
     victoryKicker: "任务完成", victoryTitle: "日本<br />得救了……", victoryCopy: "47个都道府县的元气，让日本团结一心。", top: "前5名飞行员",
     start: "开始游戏", built: "使用 Codex + GPT-5.6 构建", finalPhase: "最终阶段 · 首领战", mission: "任务", of: "/ 3", energy: "能量", genki: "元气",
+    dailyRule: "每天一次 · 日本时间21:00", dailyCountdown: "距离下次全国防卫作战", dailyLive: "今日全国防卫作战进行中", scenarioLoading: "正在分析今日危机……",
     missions: [["启动防护盾", "为故乡的防卫系统充能"], ["拦截UFO", "在敌人抵达日本前协力攻击"], ["全国元气接力", "跨越地区传递元气"], ["拯救日本！", "汇聚全国元气发动同步攻击"]],
   },
 };
@@ -46,6 +49,37 @@ gameQrOverlay.className = "game-qr-overlay hidden";
 gameQrOverlay.innerHTML =
   '<img src="/api/qr" alt="Join QR code"><strong>SCAN TO JOIN</strong>';
 document.body.append(gameQrOverlay);
+function localizedMission(mission, index = state?.missionIndex || 0) {
+  if (!mission) return { title: "", brief: "" };
+  if (displayLocale === "ja")
+    return {
+      title: mission.titleJa || displayCopy.missions?.[index]?.[0] || mission.title,
+      brief: mission.briefJa || displayCopy.missions?.[index]?.[1] || mission.brief,
+    };
+  if (displayLocale === "zh")
+    return {
+      title: mission.titleZh || displayCopy.missions?.[index]?.[0] || mission.title,
+      brief: mission.briefZh || displayCopy.missions?.[index]?.[1] || mission.brief,
+    };
+  return { title: mission.title, brief: mission.brief };
+}
+function localizedScenario(scenario) {
+  if (!scenario)
+    return { title: displayCopy.scenarioLoading, summary: "", bossName: "" };
+  if (displayLocale === "ja")
+    return {
+      title: scenario.titleJa || scenario.title,
+      summary: scenario.summaryJa || scenario.summary,
+      bossName: scenario.bossNameJa || scenario.bossName,
+    };
+  if (displayLocale === "zh")
+    return {
+      title: scenario.titleZh || scenario.title,
+      summary: scenario.summaryZh || scenario.summary,
+      bossName: scenario.bossNameZh || scenario.bossName,
+    };
+  return scenario;
+}
 function applyDisplayLocale(locale) {
   if (!displayCopies[locale]) return;
   displayLocale = locale;
@@ -59,7 +93,8 @@ function applyDisplayLocale(locale) {
   text("solutionKicker", displayCopy.solutionKicker); html("solutionTitle", displayCopy.solutionTitle);
   text("experienceKicker", displayCopy.experienceKicker); text("experienceTitle", displayCopy.experienceTitle); html("phaseRow", displayCopy.phaseRow);
   text("openaiKicker", displayCopy.openaiKicker); html("openaiTitle", displayCopy.openaiTitle); text("openaiCopy", displayCopy.openaiCopy);
-  text("presentationLabel", displayCopy.presentation); text("qrLabel", displayCopy.qr); text("bossLabel", displayCopy.boss);
+  text("presentationLabel", displayCopy.presentation); text("qrLabel", displayCopy.qr);
+  text("displayDailyRule", displayCopy.dailyRule); text("displayDailyLabel", displayCopy.dailyCountdown);
   text("victoryKicker", displayCopy.victoryKicker); html("displayVictoryTitle", displayCopy.victoryTitle); text("displayVictoryCopy", displayCopy.victoryCopy); text("topPilotsLabel", displayCopy.top); text("builtLabel", displayCopy.built);
   gameQrOverlay.querySelector("strong").textContent = displayCopy.qr;
   document.querySelectorAll("[data-display-locale]").forEach((button) => button.classList.toggle("active", button.dataset.displayLocale === locale));
@@ -166,6 +201,7 @@ function setDebugMode(enabled) {
     liveComment("DEBUG MODE ENABLED", "impact");
     if (audioReady) SaveJapanAudio.launch();
   }
+  render();
 }
 socket.on("host:debugMode", ({ enabled }) => setDebugMode(enabled));
 socket.on("disconnect", () => setDebugMode(false));
@@ -178,7 +214,7 @@ window.addEventListener("keydown", (event) => {
   }
   if (event.code === "Space") {
     event.preventDefault();
-    if ((state?.phase || "lobby") === "lobby") $("start").click();
+    if (debugMode && (state?.phase || "lobby") === "lobby") $("start").click();
     else if (debugMode && state?.phase === "boss") debugHomingAttack();
   }
   if (
@@ -191,7 +227,7 @@ window.addEventListener("keydown", (event) => {
   if (debugMode && event.key.toLowerCase() === "x") $("finalFire").click();
   if (event.key.toLowerCase() === "f") toggleFullscreen();
   if (event.key.toLowerCase() === "q") gameQrOverlay.classList.toggle("hidden");
-  if (event.key.toLowerCase() === "r") $("reset").click();
+  if (debugMode && event.key.toLowerCase() === "r") $("reset").click();
 });
 async function toggleFullscreen() {
   try {
@@ -468,7 +504,32 @@ function showBossCutin() {
     document.body.classList.remove("boss-warning");
   }, 2800);
 }
+function formatDailyCountdown(milliseconds) {
+  const total = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+function renderDailyStatus() {
+  if (!state) return;
+  const active = ["playing", "bossWarning", "boss", "bossDefeat"].includes(
+    state.phase,
+  );
+  const scenario = localizedScenario(state.scenario);
+  $("displayDailyLabel").textContent = active
+    ? displayCopy.dailyLive
+    : displayCopy.dailyCountdown;
+  $("displayDailyCountdown").textContent = active
+    ? "LIVE"
+    : formatDailyCountdown(
+        state.schedule.nextStartAt - (Date.now() + clockOffset),
+      );
+  $("displayScenarioTitle").textContent = scenario.title;
+  $("displayScenarioSummary").textContent = scenario.summary;
+}
 setInterval(() => {
+  renderDailyStatus();
   if (["login", "playing", "bossWarning", "boss"].includes(state?.phase)) {
     const left = Math.max(
       0,
@@ -486,6 +547,7 @@ setInterval(() => {
 }, 100);
 function render() {
   if (!state) return;
+  renderDailyStatus();
   $("playerCount").textContent = state.players;
   $("regionCount").textContent = state.prefectures.length;
   clock.classList.toggle(
@@ -501,7 +563,11 @@ function render() {
     !["playing", "bossWarning", "boss", "bossDefeat"].includes(state.phase),
   );
   $("victory").classList.toggle("hidden", state.phase !== "victory");
-  $("start").classList.toggle("hidden", state.phase !== "lobby");
+  $("start").classList.toggle(
+    "hidden",
+    state.phase !== "lobby" || !debugMode,
+  );
+  $("reset").classList.toggle("hidden", !debugMode);
   $("debug60").classList.toggle(
     "hidden",
     !["lobby", "login"].includes(state.phase),
@@ -521,15 +587,19 @@ function render() {
     updateEnemyVisuals();
     renderPrefectureMarkers();
     const m = state.missions[state.missionIndex];
-    const localizedMission = displayCopy.missions?.[state.missionIndex];
+    const missionCopy = localizedMission(m, state.missionIndex);
+    const scenarioCopy = localizedScenario(state.scenario);
+    $("bossLabel").textContent = scenarioCopy.bossName
+      ? `⚠ ${scenarioCopy.bossName}`
+      : displayCopy.boss;
     $("missionNumber").textContent = ["boss", "bossDefeat"].includes(
       state.phase,
     )
       ? displayCopy.finalPhase
       : `${displayCopy.mission} ${state.missionIndex + 1} ${displayCopy.of}`;
     $("missionIcon").textContent = m.icon;
-    $("missionTitle").textContent = localizedMission?.[0] || m.title;
-    $("missionBrief").textContent = localizedMission?.[1] || m.brief;
+    $("missionTitle").textContent = missionCopy.title;
+    $("missionBrief").textContent = missionCopy.brief;
     $("score").textContent = ["boss", "bossDefeat"].includes(state.phase)
       ? state.genki
       : state.missionScore;

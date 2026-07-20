@@ -158,6 +158,10 @@ const translations = {
       standby: "待機中",
       waiting: "作戦開始を待っています",
       soon: "まもなく防衛司令部が作戦を開始します。",
+      dailyRule: "1日1回 · 毎日21:00 JST",
+      dailyCountdown: "次回の全国防衛作戦まで",
+      dailyLive: "本日の全国防衛作戦 進行中",
+      scenarioLoading: "本日の危機を解析中…",
       contribution: "あなたの貢献",
       defenseTeam: "防衛隊",
       finalBoss: "最終決戦",
@@ -194,6 +198,10 @@ const translations = {
       standby: "STAND BY",
       waiting: "Waiting for launch",
       soon: "The defense commander will start soon.",
+      dailyRule: "ONCE A DAY · 21:00 JST",
+      dailyCountdown: "NEXT NATIONAL DEFENSE IN",
+      dailyLive: "TODAY'S DEFENSE IS LIVE",
+      scenarioLoading: "ANALYZING TODAY'S CRISIS…",
       contribution: "Your contribution",
       defenseTeam: "Defense Team",
       finalBoss: "FINAL BOSS",
@@ -225,6 +233,10 @@ const translations = {
       standby: "待命",
       waiting: "等待作战开始",
       soon: "防卫指挥部即将启动作战。",
+      dailyRule: "每天一次 · 日本时间21:00",
+      dailyCountdown: "距离下次全国防卫作战",
+      dailyLive: "今日全国防卫作战进行中",
+      scenarioLoading: "正在分析今日危机……",
       contribution: "你的贡献",
       defenseTeam: "防卫队",
       finalBoss: "最终决战",
@@ -270,7 +282,8 @@ let player = null,
   state = null,
   myScore = 0,
   audioReady = false,
-  lastMission = -1;
+  lastMission = -1,
+  clockOffset = 0;
 const $ = (id) => document.getElementById(id);
 const safe = (value) =>
   String(value)
@@ -287,6 +300,37 @@ function localizedPrefecture(prefecture) {
   if (currentLocale === "ja") return prefecturesJa[index];
   if (currentLocale === "zh") return prefecturesZh[index];
   return prefecture;
+}
+function localizedMission(mission, index = state?.missionIndex || 0) {
+  if (!mission) return { title: "", brief: "" };
+  if (currentLocale === "ja")
+    return {
+      title: mission.titleJa || copy.missions?.[index]?.[0] || mission.title,
+      brief: mission.briefJa || copy.missions?.[index]?.[1] || mission.brief,
+    };
+  if (currentLocale === "zh")
+    return {
+      title: mission.titleZh || copy.missions?.[index]?.[0] || mission.title,
+      brief: mission.briefZh || copy.missions?.[index]?.[1] || mission.brief,
+    };
+  return { title: mission.title, brief: mission.brief };
+}
+function localizedScenario(scenario) {
+  if (!scenario)
+    return { title: copy.scenarioLoading, summary: "", bossName: "" };
+  if (currentLocale === "ja")
+    return {
+      title: scenario.titleJa || scenario.title,
+      summary: scenario.summaryJa || scenario.summary,
+      bossName: scenario.bossNameJa || scenario.bossName,
+    };
+  if (currentLocale === "zh")
+    return {
+      title: scenario.titleZh || scenario.title,
+      summary: scenario.summaryZh || scenario.summary,
+      bossName: scenario.bossNameZh || scenario.bossName,
+    };
+  return scenario;
 }
 function renderPrefectureOptions(
   selected = $("prefecture").value || savedPrefecture,
@@ -312,6 +356,8 @@ function applyLocale(nextLocale, { persist = true } = {}) {
   $("hometownLabel").textContent = copy.hometown;
   $("joinButton").textContent = copy.join;
   $("joinFine").textContent = copy.fine;
+  $("dailyRule").textContent = copy.dailyRule;
+  $("dailyCountdownLabel").textContent = copy.dailyCountdown;
   $("contributionLabel").textContent = copy.contribution;
   $("mobileRankingTitle").textContent = copy.ranking;
   $("victoryTitle").innerHTML = copy.victoryTitle;
@@ -326,6 +372,7 @@ function applyLocale(nextLocale, { persist = true } = {}) {
     $("pilotRegion").textContent =
       `${localizedPrefecture(player.prefecture)} ${copy.defenseTeam}`;
   }
+  renderDailyStatus();
   render();
 }
 document.querySelectorAll("[data-locale]").forEach((button) =>
@@ -338,6 +385,34 @@ timer.style.cssText =
   "font-size:34px;font-weight:1000;margin:14px 0 -10px;font-variant-numeric:tabular-nums";
 timer.textContent = "60s";
 $("game").insertBefore(timer, $("game").querySelector(".mission-card"));
+function formatCountdown(milliseconds) {
+  const total = Math.max(0, Math.ceil(milliseconds / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+function renderDailyStatus() {
+  if (!state) return;
+  const active = ["playing", "bossWarning", "boss", "bossDefeat"].includes(
+    state.phase,
+  );
+  const scenario = localizedScenario(state.scenario);
+  $("dailyCountdownLabel").textContent = active
+    ? copy.dailyLive
+    : copy.dailyCountdown;
+  $("dailyCountdown").textContent = active
+    ? "LIVE"
+    : formatCountdown(
+        state.schedule.nextStartAt - (Date.now() + clockOffset),
+      );
+  $("dailyScenarioTitle").textContent = scenario.title;
+  $("dailyScenarioSummary").textContent = scenario.summary;
+}
+setInterval(() => {
+  renderDailyStatus();
+  if (player && state?.phase === "lobby") render();
+}, 250);
 async function enableAudio() {
   if (!audioReady) {
     SaveJapanAudio.init();
@@ -382,7 +457,9 @@ $("fire").addEventListener("pointerdown", () => {
 });
 socket.on("state", (s) => {
   state = s;
+  clockOffset = s.serverNow - Date.now();
   if (s.phase === "playing" && audioReady) SaveJapanAudio.startMusic();
+  renderDailyStatus();
   render();
 });
 socket.on("generating", () => {
@@ -391,7 +468,7 @@ socket.on("generating", () => {
     $("missionBrief").textContent = copy.analyzing;
   }
 });
-socket.on("missionComplete", ({ title, victory }) => {
+socket.on("missionComplete", ({ title, mission, victory }) => {
   if (victory) {
     if (audioReady) SaveJapanAudio.victory();
     return;
@@ -399,8 +476,7 @@ socket.on("missionComplete", ({ title, victory }) => {
   if (audioReady) SaveJapanAudio.alert();
   const t = document.createElement("div");
   t.className = "toast";
-  const localizedTitle =
-    copy.missions?.[state?.missionIndex]?.[0] || title;
+  const localizedTitle = localizedMission(mission).title || title;
   t.textContent = `✓ ${localizedTitle} ${copy.complete}`;
   document.body.append(t);
   setTimeout(() => t.remove(), 2100);
@@ -423,9 +499,12 @@ function render() {
     );
     return;
   }
+  $("victory").classList.add("hidden");
+  $("game").classList.remove("hidden");
   const active = ["playing", "boss"].includes(state.phase),
     m = state.missions[state.missionIndex];
-  const localizedMission = copy.missions?.[state.missionIndex];
+  const missionCopy = localizedMission(m, state.missionIndex);
+  const scenarioCopy = localizedScenario(state.scenario);
   if (active) {
     const remaining = Math.max(
       0,
@@ -435,6 +514,11 @@ function render() {
     );
     timer.textContent = `${remaining}s`;
     timer.classList.toggle("urgent", remaining <= 10);
+  } else {
+    timer.textContent = formatCountdown(
+      state.schedule.nextStartAt - (Date.now() + clockOffset),
+    );
+    timer.classList.remove("urgent");
   }
   $("missionNumber").textContent = active
     ? state.phase === "boss"
@@ -442,11 +526,11 @@ function render() {
       : `${copy.mission} ${state.missionIndex + 1} / 3`
     : copy.standby;
   $("missionTitle").textContent = active
-    ? `${m.icon} ${localizedMission?.[0] || m.title}`
-    : copy.waiting;
+    ? `${m.icon} ${missionCopy.title}`
+    : scenarioCopy.title || copy.waiting;
   $("missionBrief").textContent = active
-    ? localizedMission?.[1] || m.brief
-    : copy.soon;
+    ? missionCopy.brief
+    : `${scenarioCopy.summary || copy.soon} · ${copy.dailyRule}`;
   $("progressBar").style.width = active
     ? `${Math.min(100, state.phase === "boss" ? (state.genki / state.genkiTarget) * 100 : (state.missionScore / state.missionTarget) * 100)}%`
     : "0";

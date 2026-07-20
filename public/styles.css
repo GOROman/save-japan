@@ -133,6 +133,49 @@ select {
   line-height: 1.55;
   margin: 0;
 }
+.daily-briefing {
+  margin: -8px 0 20px;
+  padding: 17px 18px;
+  border: 1px solid #2d5f85;
+  border-radius: 18px;
+  background: linear-gradient(135deg, #07182ee8, #10101fe8);
+  box-shadow: inset 0 1px #ffffff0c, 0 14px 38px #0006;
+}
+.daily-briefing small,
+.daily-briefing > span {
+  display: block;
+  color: #79a8cc;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+.daily-briefing > span {
+  margin-top: 9px;
+  color: #ff6076;
+}
+.daily-briefing > strong {
+  display: block;
+  margin: 2px 0 10px;
+  color: #fff;
+  font-size: clamp(34px, 11vw, 52px);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.045em;
+  line-height: 1;
+  text-shadow: 0 0 24px #39aaff88;
+}
+.daily-briefing h2 {
+  margin: 0 0 4px;
+  color: #5cff91;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.daily-briefing p {
+  margin: 0;
+  color: #9eb3c8;
+  font-size: 12px;
+  line-height: 1.5;
+}
 .card {
   background: linear-gradient(
     145deg,

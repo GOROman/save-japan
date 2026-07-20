@@ -5,11 +5,14 @@
   "compatibility_date": "2026-07-18",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": true,
+  "triggers": {
+    "crons": ["59 11 * * *", "0 12 * * *"]
+  },
   "containers": [
     {
       "class_name": "SaveJapanContainer",
       "image": "./Dockerfile",
-      "max_instances": 1,
+      "max_instances": 2,
       "instance_type": "lite",
       "constraints": {
         "regions": ["APAC"]
