@@ -1,7 +1,7 @@
 import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 
-const DAILY_CONTAINER_NAME = "save-japan-daily-v3";
+const DAILY_CONTAINER_NAME = "save-japan-v1-2";
 
 function getDailyContainer(environment) {
   return getContainer(environment.SAVE_JAPAN, DAILY_CONTAINER_NAME);

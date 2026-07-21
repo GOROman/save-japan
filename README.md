@@ -4,6 +4,8 @@
   <img src="assets/save-japan-key-art.png" alt="Save Japan! — nationwide cooperative UFO defense game" width="760">
 </p>
 
+<p align="center"><strong>Current release: v1.2</strong></p>
+
 ## Demo
 
 <p align="center">
@@ -12,6 +14,15 @@
 
 - **Player:** [save-japan.goroman.workers.dev](https://save-japan.goroman.workers.dev/)
 - **Projector:** [save-japan.goroman.workers.dev/display](https://save-japan.goroman.workers.dev/display)
+
+## v1.2 highlights
+
+- **One worldwide daily operation:** the shared session opens automatically at 21:00 JST, with a persistent one-launch-per-day guard.
+- **A different crisis every day:** GPT-5.6 prepares a fictional Japan-in-crisis scenario, boss, and four multilingual missions at 20:59 JST; deterministic daily scenarios keep the operation playable without generation.
+- **Always-ready venue onboarding:** the waiting screen keeps the QR code visible while the five-slide pitch deck loops automatically every three seconds.
+- **Three-language experience:** both the mobile controller and projector screen support Japanese, English, and Simplified Chinese.
+- **Live MMOSG battle:** phones launch prefecture-based homing attacks into the same authoritative battle, culminating in a synchronized nationwide boss strike.
+- **Production deployment:** Cloudflare Workers, Containers, Cron Triggers, and Durable Object storage provide one public WebSocket game endpoint.
 
 **Reignite Japan's spirit—one hometown at a time.**
 
@@ -56,7 +67,7 @@ The UFO battle is intentionally playful, but the interaction model has a broader
 
 We designed Save Japan! as one synchronized experience across a projector and the audience's smartphones.
 
-The mobile browser handles instant registration, hometown selection, mission instructions, personal contribution, haptic feedback, and the final command. The shared screen handles QR onboarding, new-player arrivals, regional participation, the UFO battle, mission progress, and the final result. Socket.IO synchronizes every action in real time without requiring accounts or a database.
+The mobile browser handles instant registration, hometown selection, mission instructions, personal contribution, haptic feedback, and the final command. The shared screen keeps the QR visible throughout the waiting phase, loops its five-slide presentation every three seconds, and then handles new-player arrivals, regional participation, the UFO battle, mission progress, and the final result. Socket.IO synchronizes every action in real time without requiring accounts or a database.
 
 GPT-5.6 uses structured output to create a reliable daily crisis scenario and four-mission sequence. A date-seeded library of fictional crises keeps the daily scenario changing and the live game playable if generation is unavailable. Codex supported product scoping, architecture, implementation, debugging, visual design, testing, and documentation in one primary development thread.
 
@@ -94,7 +105,7 @@ The UFO invasion is the beginning. The long-term goal is to turn shared exciteme
 
 ## Two-minute live experience
 
-1. Open `/display`; the command screen and phones show the countdown to 21:00 JST.
+1. Open `/display`; the projector loops the pitch deck every three seconds while showing the countdown and persistent QR code.
 2. Players scan the QR code and join from any mobile browser—no installation or account.
 3. At 20:59 JST, GPT-5.6 prepares that day's fictional crisis and multilingual mission copy.
 4. At 21:00 JST, the one worldwide game starts automatically.
@@ -151,7 +162,7 @@ Projector command screen ◀──────── synchronized public game st
 In production, a Cloudflare Worker and singleton Durable Object route every request and WebSocket connection to the same Cloudflare Container.
 
 - **Player client:** mobile-first HTML, CSS, and JavaScript for registration, missions, attacks, haptics, and local sound effects.
-- **Command screen:** a dedicated `/display` route for QR onboarding, the live Japan map, player arrivals, enemy attacks, mission state, and results.
+- **Command screen:** a dedicated `/display` route for persistent waiting-room QR onboarding, an automatic pitch slideshow, the live Japan map, player arrivals, enemy attacks, mission state, and results.
 - **Authoritative server:** Node.js, Express, and Socket.IO own the phase clock, player registry, scores, enemies, boss energy, and launch-vote threshold.
 - **AI boundary:** the OpenAI Responses API produces one scenario and exactly four multilingual mission objects through a strict JSON schema. Generated durations are replaced with server-controlled values before use.
 - **Graceful fallback:** missing credentials, API errors, or invalid generation never block play; a date-seeded scenario library changes the crisis from day to day.
