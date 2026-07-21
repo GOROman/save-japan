@@ -1,44 +1,6 @@
 body {
   overflow: hidden;
 }
-.game-qr-overlay {
-  position: fixed;
-  z-index: 720;
-  top: 92px;
-  right: 28px;
-  width: min(32vw, 430px);
-  padding: 18px;
-  border: 6px solid white;
-  border-radius: 26px;
-  background: white;
-  color: #07111e;
-  text-align: center;
-  box-shadow:
-    0 0 35px #37b3ff,
-    0 0 85px #001b35;
-  animation: gameQrReveal 0.35s ease-out both;
-}
-.game-qr-overlay img {
-  display: block;
-  width: 100%;
-  border-radius: 8px;
-}
-.game-qr-overlay strong {
-  display: block;
-  margin-top: 6px;
-  font-size: clamp(18px, 1.6vw, 28px);
-  letter-spacing: 0.12em;
-}
-@keyframes gameQrReveal {
-  from {
-    opacity: 0;
-    transform: translateY(-18px) scale(0.88);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
 body.final-ten:after {
   content: "";
   position: fixed;
@@ -419,6 +381,24 @@ body.result-reveal .victory-screen:not(.hidden) {
   font-weight: 900;
   letter-spacing: 0.24em;
   transform: translateX(-50%);
+}
+.title-genre {
+  position: absolute;
+  bottom: 54px;
+  left: 50%;
+  z-index: 4;
+  color: #d7ecff;
+  font-size: clamp(12px, 1.2vw, 18px);
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-align: center;
+  text-transform: uppercase;
+  text-shadow: 0 0 20px #1688ff;
+  transform: translateX(-50%);
+  white-space: nowrap;
+}
+.title-genre b {
+  color: #55ff8b;
 }
 .slide-kicker {
   color: #ff536b;

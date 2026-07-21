@@ -16,9 +16,8 @@
   <body>
     <main class="display">
       <header>
-        <div class="brand">
+        <div class="brand" aria-label="Save Japan">
           <span class="brand-mark">日</span>
-          <span id="displayBrand">National Defense Command</span>
         </div>
         <div class="live">
           <i></i> <span id="liveLabel">LIVE</span> ·
@@ -49,6 +48,9 @@
                 src="/assets/save-japan-key-art.png"
                 alt="Save Japan key art"
               />
+              <div class="title-genre">
+                Massive Multiplayer Online Shooting Game <b>(MMOSG)</b>
+              </div>
               <div class="title-version">VERSION 1.1</div>
             </article>
             <article class="pitch-slide pitch-copy ai-slide">
@@ -88,7 +90,7 @@
           </div>
           <div id="recent" class="recent"></div>
         </div>
-        <div class="qr-card">
+        <div class="qr-card qr-visible">
           <img src="/api/qr" alt="Join QR code" /><strong id="qrLabel">SCAN TO JOIN</strong
           ><small id="joinUrl"></small>
         </div>
@@ -149,7 +151,6 @@
         ><button id="debug60" class="secondary debug-control"><kbd>D</kbd> DEBUG 60</button
         ><button id="boss" class="secondary debug-control"><kbd>B</kbd> BOSS</button
         ><button id="finalFire" class="secondary debug-control"><kbd>X</kbd> FIRE</button
-        ><button id="qrToggle" class="secondary"><kbd>Q</kbd> QR</button
         ><button id="reset" class="secondary"><kbd>R</kbd> RESET</button>
       </footer>
     </main>

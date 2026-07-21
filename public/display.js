@@ -44,11 +44,6 @@ const displayCopies = {
 let displayLocale = localStorage.getItem("saveJapan.displayLocale") || "ja";
 if (!displayCopies[displayLocale]) displayLocale = "ja";
 let displayCopy = displayCopies[displayLocale];
-const gameQrOverlay = document.createElement("div");
-gameQrOverlay.className = "game-qr-overlay hidden";
-gameQrOverlay.innerHTML =
-  '<img src="/api/qr" alt="Join QR code"><strong>SCAN TO JOIN</strong>';
-document.body.append(gameQrOverlay);
 function localizedMission(mission, index = state?.missionIndex || 0) {
   if (!mission) return { title: "", brief: "" };
   if (displayLocale === "ja")
@@ -88,7 +83,7 @@ function applyDisplayLocale(locale) {
   document.documentElement.lang = locale === "zh" ? "zh-CN" : locale;
   const text = (id, value) => ($(id).textContent = value);
   const html = (id, value) => ($(id).innerHTML = value);
-  text("displayBrand", displayCopy.brand); text("liveLabel", displayCopy.live); text("pilotsLabel", displayCopy.pilots); text("regionsLabel", displayCopy.regions);
+  text("liveLabel", displayCopy.live); text("pilotsLabel", displayCopy.pilots); text("regionsLabel", displayCopy.regions);
   text("problemKicker", displayCopy.problemKicker); html("problemTitle", displayCopy.problemTitle); text("problemCopy", displayCopy.problemCopy);
   text("solutionKicker", displayCopy.solutionKicker); html("solutionTitle", displayCopy.solutionTitle);
   text("experienceKicker", displayCopy.experienceKicker); text("experienceTitle", displayCopy.experienceTitle); html("phaseRow", displayCopy.phaseRow);
@@ -96,7 +91,6 @@ function applyDisplayLocale(locale) {
   text("presentationLabel", displayCopy.presentation); text("qrLabel", displayCopy.qr);
   text("displayDailyRule", displayCopy.dailyRule); text("displayDailyLabel", displayCopy.dailyCountdown);
   text("victoryKicker", displayCopy.victoryKicker); html("displayVictoryTitle", displayCopy.victoryTitle); text("displayVictoryCopy", displayCopy.victoryCopy); text("topPilotsLabel", displayCopy.top); text("builtLabel", displayCopy.built);
-  gameQrOverlay.querySelector("strong").textContent = displayCopy.qr;
   document.querySelectorAll("[data-display-locale]").forEach((button) => button.classList.toggle("active", button.dataset.displayLocale === locale));
   render();
 }
@@ -183,6 +177,7 @@ lobbyMap.classList.add("lobby-japan-map");
 $("mapSlideTarget").append(lobbyMap);
 const slides = [...document.querySelectorAll(".pitch-slide")];
 let slideIndex = 0;
+let slideTimer = null;
 function showSlide(next) {
   slideIndex = (next + slides.length) % slides.length;
   slides.forEach((slide, index) =>
@@ -190,10 +185,16 @@ function showSlide(next) {
   );
   $("slideCount").textContent =
     `${String(slideIndex + 1).padStart(2, "0")} / ${String(slides.length).padStart(2, "0")}`;
-  document
-    .querySelector(".qr-card")
-    .classList.toggle("qr-visible", slideIndex > 0);
 }
+function scheduleSlideAdvance() {
+  clearTimeout(slideTimer);
+  slideTimer = setTimeout(() => {
+    if (["lobby", "login"].includes(state?.phase || "lobby"))
+      showSlide(slideIndex + 1);
+    scheduleSlideAdvance();
+  }, 3_000);
+}
+scheduleSlideAdvance();
 function setDebugMode(enabled) {
   debugMode = Boolean(enabled);
   document.body.classList.toggle("debug-enabled", debugMode);
@@ -209,8 +210,14 @@ window.addEventListener("keydown", (event) => {
   enableAudio();
   if (!event.repeat) socket.emit("host:debugKey", { code: event.code });
   if (["lobby", "login"].includes(state?.phase || "lobby")) {
-    if (event.key === "ArrowRight") showSlide(slideIndex + 1);
-    if (event.key === "ArrowLeft") showSlide(slideIndex - 1);
+    if (event.key === "ArrowRight") {
+      showSlide(slideIndex + 1);
+      scheduleSlideAdvance();
+    }
+    if (event.key === "ArrowLeft") {
+      showSlide(slideIndex - 1);
+      scheduleSlideAdvance();
+    }
   }
   if (event.code === "Space") {
     event.preventDefault();
@@ -226,7 +233,6 @@ window.addEventListener("keydown", (event) => {
   if (debugMode && event.key.toLowerCase() === "b") $("boss").click();
   if (debugMode && event.key.toLowerCase() === "x") $("finalFire").click();
   if (event.key.toLowerCase() === "f") toggleFullscreen();
-  if (event.key.toLowerCase() === "q") gameQrOverlay.classList.toggle("hidden");
   if (debugMode && event.key.toLowerCase() === "r") $("reset").click();
 });
 async function toggleFullscreen() {
@@ -296,7 +302,6 @@ $("reset").onclick = () => {
 };
 $("debug60").onclick = () => debugMode && socket.emit("host:debug60");
 $("boss").onclick = () => debugMode && socket.emit("host:boss");
-$("qrToggle").onclick = () => gameQrOverlay.classList.toggle("hidden");
 $("finalFire").onclick = () => {
   if (!debugMode) return;
   if (audioReady) SaveJapanAudio.hissatsu();
@@ -547,6 +552,7 @@ setInterval(() => {
 }, 100);
 function render() {
   if (!state) return;
+  const waiting = ["lobby", "login"].includes(state.phase);
   renderDailyStatus();
   $("playerCount").textContent = state.players;
   $("regionCount").textContent = state.prefectures.length;
@@ -556,8 +562,9 @@ function render() {
   );
   $("lobby").classList.toggle(
     "hidden",
-    !["lobby", "login"].includes(state.phase),
+    !waiting,
   );
+  document.querySelector(".qr-card").classList.toggle("qr-visible", waiting);
   $("battle").classList.toggle(
     "hidden",
     !["playing", "bossWarning", "boss", "bossDefeat"].includes(state.phase),

@@ -15,6 +15,9 @@
 
 **Reignite Japan's spirit—one hometown at a time.**
 
+**Massive Multiplayer Online Shooting Game (MMOSG)** — one shared battle,
+one Japan, and every phone becomes an interceptor.
+
 Japan once astonished the world with its energy, imagination, and shared belief in a brighter future. Today, many people feel that confidence and connection fading. **Save Japan!** asks a hopeful question: what if we could awaken that spirit again—not by returning to the past, but by bringing its courage, creativity, and solidarity into the future?
 
 Save Japan! turns people across the country into one nationwide defense team for an intense two-minute live experience. **One worldwide game starts every day at 21:00 Japan Standard Time.** Until launch, players scan the QR code, choose a nickname and home prefecture, and wait together as the synchronized countdown approaches zero. Each daily battle uses a different fictional crisis scenario, three regional missions, and a synchronized final boss fight.
