@@ -17,6 +17,6 @@
   },
   "devDependencies": {
     "socket.io-client": "^4.8.3",
-    "wrangler": "^4.112.0"
+    "wrangler": "^4.145.0"
   }
 }
