@@ -1,6 +1,6 @@
 import express from "express";
 import http from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID, timingSafeEqual } from "node:crypto";
 import { Server } from "socket.io";
 import OpenAI from "openai";
 import QRCode from "qrcode";
@@ -10,7 +10,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 const port = process.env.PORT || 3000;
 
-app.set("trust proxy", true);
+// One reverse proxy sits in front of this process: the Cloudflare container
+// proxy, or Render's load balancer. Trusting every hop lets clients spoof
+// X-Forwarded-For.
+app.set("trust proxy", 1);
 app.use(express.static("public"));
 app.use("/assets", express.static("assets"));
 app.get("/display", (_req, res) =>
@@ -21,7 +24,7 @@ const JST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAILY_START_HOUR_JST = 21;
 const DAILY_PREPARE_MINUTE_JST = 59;
 const RESULT_DURATION_MS = 3 * 60 * 1000;
-const INTERNAL_SCHEDULER_HEADER = "cloudflare-cron";
+const SCHEDULER_HEADER = "x-save-japan-scheduler";
 
 const defaultMissions = [
   {
@@ -1020,8 +1023,18 @@ function regionFor(prefecture) {
   );
 }
 
+function schedulerSecret() {
+  const secret = process.env.SCHEDULER_SECRET;
+  return typeof secret === "string" && secret.length > 0 ? secret : "";
+}
+
 function schedulerRequestAllowed(req) {
-  return req.get("x-save-japan-scheduler") === INTERNAL_SCHEDULER_HEADER;
+  const expected = schedulerSecret();
+  if (!expected) return false;
+  const provided = req.get(SCHEDULER_HEADER) ?? "";
+  const providedHash = createHash("sha256").update(provided).digest();
+  const expectedHash = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(providedHash, expectedHash);
 }
 
 function scheduledDateFromRequest(req) {
