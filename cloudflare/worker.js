@@ -2,9 +2,34 @@ import { Container, getContainer } from "@cloudflare/containers";
 import { env } from "cloudflare:workers";
 
 const DAILY_CONTAINER_NAME = "save-japan-daily-v3";
+const SCHEDULER_HEADER = "x-save-japan-scheduler";
+const CLIENT_SCHEDULER_HEADERS = [
+  SCHEDULER_HEADER,
+  "x-save-japan-date",
+  "x-save-japan-scheduled-at",
+];
 
 function getDailyContainer(environment) {
   return getContainer(environment.SAVE_JAPAN, DAILY_CONTAINER_NAME);
+}
+
+function readSchedulerSecret(source) {
+  const secret = source?.SCHEDULER_SECRET;
+  return typeof secret === "string" && secret.length > 0 ? secret : "";
+}
+
+async function schedulerAuthorized(provided, expected) {
+  if (!expected) return false;
+  const encoder = new TextEncoder();
+  const [providedHash, expectedHash] = await Promise.all([
+    crypto.subtle.digest("SHA-256", encoder.encode(provided ?? "")),
+    crypto.subtle.digest("SHA-256", encoder.encode(expected)),
+  ]);
+  return crypto.subtle.timingSafeEqual(providedHash, expectedHash);
+}
+
+function stripClientSchedulerHeaders(headers) {
+  for (const name of CLIENT_SCHEDULER_HEADERS) headers.delete(name);
 }
 
 export class SaveJapanContainer extends Container {
@@ -16,12 +41,16 @@ export class SaveJapanContainer extends Container {
     ...(env.OPENAI_API_KEY
       ? { OPENAI_API_KEY: String(env.OPENAI_API_KEY) }
       : {}),
+    ...(readSchedulerSecret(env)
+      ? { SCHEDULER_SECRET: readSchedulerSecret(env) }
+      : {}),
   };
 
   async fetch(request) {
     const url = new URL(request.url);
     if (!url.pathname.startsWith("/__daily-")) return super.fetch(request);
-    if (request.headers.get("x-save-japan-scheduler") !== "cloudflare-cron")
+    const secret = readSchedulerSecret(this.env) || readSchedulerSecret(env);
+    if (!(await schedulerAuthorized(request.headers.get(SCHEDULER_HEADER), secret)))
       return new Response("Not found", { status: 404 });
 
     const dateKey = request.headers.get("x-save-japan-date");
@@ -45,7 +74,12 @@ export class SaveJapanContainer extends Container {
     const response = await this.containerFetch(
       new Request(containerUrl, {
         method: "POST",
-        headers: request.headers,
+        headers: {
+          [SCHEDULER_HEADER]: secret,
+          "x-save-japan-date": dateKey,
+          "x-save-japan-scheduled-at":
+            request.headers.get("x-save-japan-scheduled-at") || "",
+        },
       }),
     );
     if (action === "start" && response.ok) {
@@ -62,9 +96,7 @@ export default {
     if (url.pathname.startsWith("/__daily-") || url.pathname.startsWith("/internal/"))
       return new Response("Not found", { status: 404 });
     const headers = new Headers(request.headers);
-    headers.delete("x-save-japan-scheduler");
-    headers.delete("x-save-japan-date");
-    headers.delete("x-save-japan-scheduled-at");
+    stripClientSchedulerHeaders(headers);
     headers.set("x-forwarded-proto", url.protocol.slice(0, -1));
     headers.set("x-forwarded-host", url.host);
 
@@ -73,6 +105,16 @@ export default {
   },
 
   async scheduled(controller, environment, ctx) {
+    const secret = readSchedulerSecret(environment);
+    if (!secret) {
+      console.error(
+        JSON.stringify({
+          message: "daily cron refused",
+          reason: "SCHEDULER_SECRET unset",
+        }),
+      );
+      return;
+    }
     const scheduledAt = controller.scheduledTime;
     const dateKey = new Date(scheduledAt + 9 * 60 * 60 * 1000)
       .toISOString()
@@ -81,7 +123,7 @@ export default {
     const request = new Request(`https://save-japan.internal/__daily-${action}`, {
       method: "POST",
       headers: {
-        "x-save-japan-scheduler": "cloudflare-cron",
+        [SCHEDULER_HEADER]: secret,
         "x-save-japan-date": dateKey,
         "x-save-japan-scheduled-at": String(scheduledAt),
       },

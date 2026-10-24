@@ -122,7 +122,7 @@ OPENAI_API_KEY=your_key npm start
 
 Open `http://localhost:3000/display` on the shared screen and `http://localhost:3000` on phones. For a venue demo, expose port 3000 through a secure HTTPS tunnel or deploy the Node server to a service that supports WebSockets.
 
-Local development follows the same 21:00 JST schedule. To test immediately, enter the Konami code on `/display` to reveal the debug controls, then use **START GAME**.
+Local development follows the same 21:00 JST schedule. To test immediately, enter the Konami code on `/display` to reveal the debug controls, then use **START GAME**. The `/internal/daily-*` routes stay closed unless `SCHEDULER_SECRET` is set in the environment.
 
 The app remains fully playable with a safe set of fallback missions if the API is temporarily unavailable.
 
@@ -135,11 +135,25 @@ Cloudflare Workers Paid with Containers enabled and a local Docker daemon capabl
 ```bash
 npm install
 npx wrangler login
+openssl rand -hex 32
 npx wrangler secret put OPENAI_API_KEY
+npx wrangler secret put SCHEDULER_SECRET
 npm run deploy:cloudflare
 ```
 
+`SCHEDULER_SECRET` is a long random header-safe value (for example `openssl rand -hex 32`). Store it with `npx wrangler secret put SCHEDULER_SECRET`. The Worker copies that binding into the container environment and sends it on the cron request in the `x-save-japan-scheduler` header. `/internal/daily-prepare` and `/internal/daily-start` compare the header to `SCHEDULER_SECRET` with `crypto.timingSafeEqual`. When the variable is unset, those routes return 404 and the cron does not call them.
+
+Public requests cannot supply the header. The Worker deletes client-supplied `x-save-japan-scheduler`, `x-save-japan-date`, and `x-save-japan-scheduled-at` before forwarding, and it answers `/internal/` and `/__daily-` with 404. For local Wrangler, put the secret in `.dev.vars` (gitignored) rather than in `wrangler.jsonc`.
+
+After `wrangler secret put`, run `npm run deploy:cloudflare` so the container restarts with `SCHEDULER_SECRET`. Until that restart, the daily cron stays closed.
+
 The Worker forwards HTTP and WebSocket traffic to the Node.js container. Cloudflare Cron wakes the singleton at 20:59 JST to prepare the daily scenario and again at 21:00 JST to start the game. A Durable Object record prevents a second launch on the same Japanese calendar date, even if the container restarts.
+
+## Deploy to Render
+
+`render.yaml` is an alternative WebSocket host for the same Express server. It declares `OPENAI_API_KEY` and `SCHEDULER_SECRET` with `sync: false`, so Blueprint does not store the values. Set both in the Render dashboard for the `save-japan` service.
+
+Render publishes the Node process directly. `/internal/daily-prepare` and `/internal/daily-start` stay closed until `SCHEDULER_SECRET` is set. A caller must send the exact secret in `x-save-japan-scheduler`. The previous public value `cloudflare-cron` is not accepted. Render does not attach a cron; the in-process daily timer runs only when `NODE_ENV` is not `production`.
 
 ## Built with Codex and GPT-5.6
 
@@ -177,6 +191,7 @@ In production, a Cloudflare Worker and singleton Durable Object route every requ
 - Game timing is based on server timestamps and broadcast to every connected screen.
 - The normal start and reset controls are disabled; the protected debug controls require the Konami-code unlock sequence.
 - Cloudflare Cron starts the one worldwide game at 21:00 JST, and persistent daily-date storage rejects duplicate launches.
+- `/internal/daily-prepare` and `/internal/daily-start` require `SCHEDULER_SECRET` and return 404 when that variable is unset or the header does not match.
 - AI generation occurs at 20:59 JST; it is not placed in the latency-sensitive action loop.
 - Strict structured output and deterministic fallback content keep the live event playable when AI is unavailable.
 - The deployment exposes a health endpoint and uses lockfile-based dependency installation.
